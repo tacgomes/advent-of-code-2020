@@ -1,8 +1,8 @@
-use std::io::{prelude::*, BufReader};
-use std::fs::File;
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
 
-const TARGET : i32 = 2020;
+const TARGET: i32 = 2020;
 
 fn main() {
     let f = File::open("input.txt").unwrap();
