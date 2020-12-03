@@ -7,8 +7,8 @@ const TARGET: i32 = 2020;
 
 fn main() {
     let input = env::args().nth(1).unwrap();
-    let f = File::open(input).unwrap();
-    let lines = BufReader::new(f).lines();
+    let file = File::open(input).unwrap();
+    let lines = BufReader::new(file).lines();
 
     let mut set = HashSet::new();
 

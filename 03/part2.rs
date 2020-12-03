@@ -75,9 +75,9 @@ impl Map {
 
 fn main() {
     let input = env::args().nth(1).unwrap();
-    let f = File::open(input).unwrap();
+    let file = File::open(input).unwrap();
 
-    let lines = BufReader::new(f).lines();
+    let lines = BufReader::new(file).lines();
     let lines: Vec<_> = lines.map(|x| x.unwrap()).collect();
 
     let mut map = Map::new(lines.len(), lines[0].chars().count());

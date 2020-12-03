@@ -21,8 +21,8 @@ fn valid_password(policy: &PasswordPolicy, password: &str) -> bool {
 
 fn main() {
     let input = env::args().nth(1).unwrap();
-    let f = File::open(input).unwrap();
-    let lines = BufReader::new(f).lines();
+    let file = File::open(input).unwrap();
+    let lines = BufReader::new(file).lines();
 
     let mut num_valid_passwords = 0;
 
