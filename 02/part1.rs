@@ -12,11 +12,11 @@ impl PasswordPolicy {
     fn new(min: usize, max: usize, letter: char) -> PasswordPolicy {
         PasswordPolicy { min, max, letter }
     }
-}
 
-fn valid_password(policy: &PasswordPolicy, password: &str) -> bool {
-    let letter_count = password.matches(policy.letter).count();
-    letter_count >= policy.min && letter_count <= policy.max
+    fn is_valid_password(&self, password: &str) -> bool {
+        let letter_count = password.matches(self.letter).count();
+        letter_count >= self.min && letter_count <= self.max
+    }
 }
 
 fn main() {
@@ -36,7 +36,7 @@ fn main() {
             tokens[1].chars().next().unwrap(),
         );
 
-        if valid_password(&policy, &tokens[2]) {
+        if policy.is_valid_password(&tokens[2]) {
             num_valid_passwords += 1;
         }
     }

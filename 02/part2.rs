@@ -12,12 +12,12 @@ impl PasswordPolicy {
     fn new(pos1: usize, pos2: usize, letter: char) -> PasswordPolicy {
         PasswordPolicy { pos1, pos2, letter }
     }
-}
 
-fn valid_password(policy: &PasswordPolicy, password: &str) -> bool {
-    let match_pos1 = password.chars().nth(policy.pos1 - 1).unwrap() == policy.letter;
-    let match_pos2 = password.chars().nth(policy.pos2 - 1).unwrap() == policy.letter;
-    (match_pos1 || match_pos2) && !(match_pos1 && match_pos2)
+    fn is_valid_password(&self, password: &str) -> bool {
+        let match_pos1 = password.chars().nth(self.pos1 - 1).unwrap() == self.letter;
+        let match_pos2 = password.chars().nth(self.pos2 - 1).unwrap() == self.letter;
+        (match_pos1 || match_pos2) && !(match_pos1 && match_pos2)
+    }
 }
 
 fn main() {
@@ -37,7 +37,7 @@ fn main() {
             tokens[1].chars().next().unwrap(),
         );
 
-        if valid_password(&policy, &tokens[2]) {
+        if policy.is_valid_password(&tokens[2]) {
             num_valid_passwords += 1;
         }
     }
