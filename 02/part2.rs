@@ -13,7 +13,7 @@ impl PasswordPolicy {
         PasswordPolicy { pos1, pos2, letter }
     }
 
-    fn is_valid_password(&self, password: &str) -> bool {
+    fn validate_password(&self, password: &str) -> bool {
         let match_pos1 = password.chars().nth(self.pos1 - 1).unwrap() == self.letter;
         let match_pos2 = password.chars().nth(self.pos2 - 1).unwrap() == self.letter;
         (match_pos1 || match_pos2) && !(match_pos1 && match_pos2)
@@ -37,7 +37,7 @@ fn main() {
             tokens[1].chars().next().unwrap(),
         );
 
-        if policy.is_valid_password(&tokens[2]) {
+        if policy.validate_password(&tokens[2]) {
             num_valid_passwords += 1;
         }
     }
