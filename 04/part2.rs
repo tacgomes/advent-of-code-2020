@@ -82,12 +82,11 @@ fn validate_hgt(value: &str) -> bool {
         return false;
     }
 
-    let num = match &value[..value.len() - 2].parse::<u32>() {
-        Ok(num) => *num,
+    let (num, unit) = value.split_at(value.len() -2);
+    let num = match num.parse::<u32>() {
+        Ok(num) => num,
         Err(_) => return false,
     };
-
-    let unit = &value[value.len() - 2..];
 
     match unit {
         "cm" => num >= 150 && num <= 193,
