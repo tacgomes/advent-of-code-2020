@@ -2,12 +2,17 @@ use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::process;
 
 const TARGET: i32 = 2020;
 
 fn main() {
-    let input = env::args().nth(1).unwrap();
-    let file = File::open(input).unwrap();
+    if env::args().count() != 2 {
+        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
+        process::exit(1);
+    }
+
+    let file = File::open(env::args().nth(1).unwrap()).unwrap();
     let lines = BufReader::new(file).lines();
 
     let mut vec = vec![];

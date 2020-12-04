@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::process;
 
 struct PasswordPolicy {
     pos1: usize,
@@ -21,9 +22,13 @@ impl PasswordPolicy {
 }
 
 fn main() {
-    let input = env::args().nth(1).unwrap();
-    let f = File::open(input).unwrap();
-    let lines = BufReader::new(f).lines();
+    if env::args().count() != 2 {
+        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
+        process::exit(1);
+    }
+
+    let file = File::open(env::args().nth(1).unwrap()).unwrap();
+    let lines = BufReader::new(file).lines();
 
     let mut num_valid_passwords = 0;
 

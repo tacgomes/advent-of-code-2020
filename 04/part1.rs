@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::process;
 
 fn validate_passport(passport: &str) -> bool {
     let mut field_count = 0;
@@ -22,9 +23,12 @@ fn validate_passport(passport: &str) -> bool {
 }
 
 fn main() {
-    let input = env::args().nth(1).unwrap();
+    if env::args().count() != 2 {
+        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
+        process::exit(1);
+    }
 
-    let content = fs::read_to_string(input).unwrap();
+    let content = fs::read_to_string(env::args().nth(1).unwrap()).unwrap();
     let passports = content.split("\n\n");
 
     let num_valid = passports.filter(|p| validate_passport(p)).count();
