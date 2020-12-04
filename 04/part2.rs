@@ -101,7 +101,7 @@ fn validate_hcl(value: &str) -> bool {
         return false;
     }
 
-    if value.chars().next().unwrap() != '#' {
+    if !value.starts_with('#') {
         return false;
     }
 
