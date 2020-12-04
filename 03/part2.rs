@@ -41,7 +41,7 @@ impl Map {
     }
 
     fn navigate_toboggan(&self) -> usize {
-        let movements = vec![
+        let movements = [
             MapPosition::new(1, 1),
             MapPosition::new(1, 3),
             MapPosition::new(1, 5),
