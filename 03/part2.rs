@@ -49,12 +49,10 @@ impl Map {
             MapPosition::new(2, 1),
         ];
 
-        let mut num_trees = 1;
-        for movement in &movements {
-            num_trees *= self.navigate_toboggan_with_movement(movement);
-        }
-
-        num_trees
+        movements
+            .iter()
+            .map(|m| self.navigate_toboggan_with_movement(m))
+            .product()
     }
 
     fn navigate_toboggan_with_movement(&self, movement: &MapPosition) -> usize {
