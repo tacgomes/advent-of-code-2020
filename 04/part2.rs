@@ -117,10 +117,7 @@ fn validate_hcl(value: &str) -> bool {
 }
 
 fn validate_ecl(value: &str) -> bool {
-    match value {
-        "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth" => true,
-        _ => false,
-    }
+    matches!(value, "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth")
 }
 
 fn validate_pid(value: &str) -> bool {
