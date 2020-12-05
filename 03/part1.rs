@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::path::Path;
 use std::process;
 
 #[derive(PartialEq, Eq, Hash)]
@@ -52,13 +53,8 @@ impl Map {
     }
 }
 
-fn main() {
-    if env::args().count() != 2 {
-        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
-        process::exit(1);
-    }
-
-    let file = File::open(env::args().nth(1).unwrap()).unwrap();
+fn encountered_trees_count(file_name: impl AsRef<Path>) -> usize {
+    let file = File::open(file_name).unwrap();
     let lines = BufReader::new(file).lines();
     let lines: Vec<_> = lines.map(|x| x.unwrap()).collect();
 
@@ -71,6 +67,15 @@ fn main() {
             }
         }
     }
+    map.navigate_toboggan()
+}
 
-    println!("Result: {}", map.navigate_toboggan());
+fn main() {
+    if env::args().count() != 2 {
+        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
+        process::exit(1);
+    }
+
+    let count = encountered_trees_count(env::args().nth(1).unwrap());
+    println!("Result: {}", count);
 }

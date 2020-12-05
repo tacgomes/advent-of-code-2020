@@ -2,6 +2,7 @@ use std::cmp;
 use std::env;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::path::Path;
 use std::process;
 
 const ROWS: usize = 128;
@@ -31,13 +32,8 @@ fn find_seat(seat: &str, mut lower: usize, mut upper: usize) -> usize {
     lower
 }
 
-fn main() {
-    if env::args().count() != 2 {
-        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
-        process::exit(1);
-    }
-
-    let file = File::open(env::args().nth(1).unwrap()).unwrap();
+fn find_highest_and_free_seats(file_name: impl AsRef<Path>) -> (usize, usize) {
+    let file = File::open(file_name).unwrap();
     let lines = BufReader::new(file).lines();
 
     let mut highest_seat_id = 0;
@@ -59,6 +55,16 @@ fn main() {
         .position(|&x| x == false)
         .unwrap();
 
+    (highest_seat_id, first_occupied + first_free)
+}
+
+fn main() {
+    if env::args().count() != 2 {
+        eprintln!("USAGE: {} FILE", env::args().next().unwrap());
+        process::exit(1);
+    }
+
+    let (highest_seat_id, free_seat_id) = find_highest_and_free_seats(env::args().nth(1).unwrap());
     println!("Result (part 1): {}", highest_seat_id);
-    println!("Result (part 2): {}", first_occupied + first_free);
+    println!("Result (part 2): {}", free_seat_id);
 }
