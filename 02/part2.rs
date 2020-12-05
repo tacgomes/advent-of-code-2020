@@ -54,3 +54,18 @@ fn main() {
     let count = valid_passwords_count(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_input() {
+        assert_eq!(valid_passwords_count("example.txt"), 1);
+    }
+
+    #[test]
+    fn test_puzzle_input() {
+        assert_eq!(valid_passwords_count("input.txt"), 747);
+    }
+}

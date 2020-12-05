@@ -68,3 +68,18 @@ fn main() {
     println!("Result (part 1): {}", highest_seat_id);
     println!("Result (part 2): {}", free_seat_id);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_input() {
+        assert_eq!(find_highest_and_free_seats("example.txt"), (357, 358));
+    }
+
+    #[test]
+    fn test_puzzle_input() {
+        assert_eq!(find_highest_and_free_seats("input.txt"), (991, 534));
+    }
+}

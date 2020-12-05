@@ -38,3 +38,18 @@ fn main() {
     let count = valid_passports_count(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_input() {
+        assert_eq!(valid_passports_count("example.txt"), 2);
+    }
+
+    #[test]
+    fn test_puzzle_input() {
+        assert_eq!(valid_passports_count("input.txt"), 202);
+    }
+}

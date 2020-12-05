@@ -43,3 +43,18 @@ fn main() {
     let result = find_solution(env::args().nth(1).unwrap());
     println!("Result: {:?}", result);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_input() {
+        assert_eq!(find_solution("example.txt"), Some(241861950));
+    }
+
+    #[test]
+    fn test_puzzle_input() {
+        assert_eq!(find_solution("input.txt"), Some(23869440));
+    }
+}

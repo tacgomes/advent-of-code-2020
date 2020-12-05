@@ -79,3 +79,18 @@ fn main() {
     let count = encountered_trees_count(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example_input() {
+        assert_eq!(encountered_trees_count("example.txt"), 7);
+    }
+
+    #[test]
+    fn test_puzzle_input() {
+        assert_eq!(encountered_trees_count("input.txt"), 207);
+    }
+}
