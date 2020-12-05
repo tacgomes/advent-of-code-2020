@@ -83,7 +83,7 @@ fn validate_hgt(value: &str) -> bool {
         return false;
     }
 
-    let (num, unit) = value.split_at(value.len() -2);
+    let (num, unit) = value.split_at(value.len() - 2);
     let num = match num.parse::<u32>() {
         Ok(num) => num,
         Err(_) => return false,
