@@ -48,11 +48,11 @@ fn find_highest_and_free_seats(file_name: impl AsRef<Path>) -> (usize, usize) {
         seats_occupied[seat_id] = true;
     }
 
-    let first_occupied = seats_occupied.iter().position(|&x| x == true).unwrap();
+    let first_occupied = seats_occupied.iter().position(|&x| x).unwrap();
     let first_free = seats_occupied
         .iter()
         .skip(first_occupied)
-        .position(|&x| x == false)
+        .position(|&x| !x)
         .unwrap();
 
     (highest_seat_id, first_occupied + first_free)
