@@ -50,7 +50,7 @@ fn validate_passport(passport: &str) -> bool {
                     field_count += 1;
                 }
             }
-            _ => {}
+            _ => ()
         }
     }
 
