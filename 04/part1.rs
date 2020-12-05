@@ -1,26 +1,23 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process;
 
+const REQUIRED_FIELDS: [&str; 7] = ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"];
+
 fn validate_passport(passport: &str) -> bool {
-    let mut field_count = 0;
+    let mut fields_found = HashSet::new();
 
     for field in passport.split_whitespace() {
-        let key = match field.split(':').next() {
-            Some(key) => key,
-            _ => continue,
-        };
-
-        match key {
-            "byr" | "iyr" | "eyr" | "hgt" | "hcl" | "ecl" | "pid" => {
-                field_count += 1;
+        if let Some(key) = field.splitn(2, ':').next() {
+            if REQUIRED_FIELDS.contains(&key) {
+                fields_found.insert(key);
             }
-            _ => continue,
-        }
+        };
     }
 
-    field_count == 7
+    fields_found.len() == REQUIRED_FIELDS.len()
 }
 
 fn valid_passports_count(file_name: impl AsRef<Path>) -> usize {

@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process;
 
-fn validate_passport(passport: &str) -> bool {
-    let mut field_count = 0;
+type FnValidator = fn(&str) -> bool;
+type Validators<'a> = HashMap<&'a str, FnValidator>;
+
+fn validate_passport(passport: &str, validators: &Validators) -> bool {
+    let mut fields_validated = HashSet::new();
 
     for field in passport.split_whitespace() {
         let parts: Vec<_> = field.splitn(2, ':').collect();
@@ -14,47 +19,14 @@ fn validate_passport(passport: &str) -> bool {
 
         let (key, value) = (parts[0], parts[1]);
 
-        match key {
-            "byr" => {
-                if validate_byr(value) {
-                    field_count += 1;
-                }
+        if let Some(validator) = validators.get(key) {
+            if validator(value) {
+                fields_validated.insert(key);
             }
-            "iyr" => {
-                if validate_iyr(value) {
-                    field_count += 1;
-                }
-            }
-            "eyr" => {
-                if validate_eyr(value) {
-                    field_count += 1;
-                }
-            }
-            "hgt" => {
-                if validate_hgt(value) {
-                    field_count += 1;
-                }
-            }
-            "hcl" => {
-                if validate_hcl(value) {
-                    field_count += 1;
-                }
-            }
-            "ecl" => {
-                if validate_ecl(value) {
-                    field_count += 1;
-                }
-            }
-            "pid" => {
-                if validate_pid(value) {
-                    field_count += 1;
-                }
-            }
-            _ => ()
         }
     }
 
-    field_count == 7
+    fields_validated.len() == validators.len()
 }
 
 fn validate_byr(value: &str) -> bool {
@@ -127,7 +99,19 @@ fn validate_pid(value: &str) -> bool {
 fn valid_passports_count(file_name: impl AsRef<Path>) -> usize {
     let content = fs::read_to_string(file_name).unwrap();
     let passports = content.split("\n\n");
-    passports.filter(|p| validate_passport(p)).count()
+
+    let mut validators: Validators = HashMap::new();
+    validators.insert("byr", validate_byr);
+    validators.insert("iyr", validate_iyr);
+    validators.insert("eyr", validate_eyr);
+    validators.insert("hgt", validate_hgt);
+    validators.insert("hcl", validate_hcl);
+    validators.insert("ecl", validate_ecl);
+    validators.insert("pid", validate_pid);
+
+    passports
+        .filter(|p| validate_passport(p, &validators))
+        .count()
 }
 
 fn main() {
