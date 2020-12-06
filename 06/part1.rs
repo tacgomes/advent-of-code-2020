@@ -3,12 +3,17 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
+fn char_index(c: char) -> usize {
+    c as usize - 'a' as usize
+}
+
 fn group_answers_count(group_answers: &str) -> usize {
     let mut results = [false; 26];
 
-    for answer in group_answers.chars().filter(|c| !c.is_whitespace()) {
-        results[answer as usize - 'a' as usize] = true;
-    }
+    group_answers
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .for_each(|answer| results[char_index(answer)] = true);
 
     results.iter().filter(|&&r| r).count()
 }

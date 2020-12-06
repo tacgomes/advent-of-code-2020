@@ -3,14 +3,18 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
+fn char_index(c: char) -> usize {
+    c as usize - 'a' as usize
+}
+
 fn group_answers_count(group_answers: &str) -> usize {
     let mut results = [0; 26];
     let mut group_size = 0;
 
     for person_answers in group_answers.lines() {
-        for answer in person_answers.chars() {
-            results[answer as usize - 'a' as usize] += 1;
-        }
+        person_answers
+            .chars()
+            .for_each(|answer| results[char_index(answer)] += 1);
         group_size += 1;
     }
 
