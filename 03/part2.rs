@@ -80,13 +80,13 @@ fn encountered_trees_count(file_name: impl AsRef<Path>) -> usize {
 
     let mut map = Map::new(lines.len(), lines[0].chars().count());
 
-    for (r, line) in lines.iter().enumerate() {
-        for (c, character) in line.chars().enumerate() {
-            if character == '#' {
-                map.add_tree(MapPosition::new(r, c));
-            }
-        }
-    }
+    lines.iter().enumerate().for_each(|(row, line)| {
+        line.chars()
+            .enumerate()
+            .filter(|&(_, ch)| ch == '#')
+            .for_each(|(col, _)| map.add_tree(MapPosition::new(row, col)))
+    });
+
     map.navigate_toboggan()
 }
 
