@@ -77,15 +77,7 @@ fn validate_hcl(value: &str) -> bool {
         return false;
     }
 
-    for c in value.chars().skip(1) {
-        match c {
-            '0'..='9' => continue,
-            'a'..='f' => continue,
-            _ => return false,
-        }
-    }
-
-    true
+    value.chars().skip(1).all(|c| c.is_ascii_hexdigit())
 }
 
 fn validate_ecl(value: &str) -> bool {
