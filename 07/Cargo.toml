@@ -5,7 +5,7 @@ authors = ["Tiago Gomes <tacg@tacgomes.com>"]
 edition = "2018"
 
 [[bin]]
-name = "07-part1-part2"
+name = "07"
 path = "main.rs"
 
 [dependencies]
