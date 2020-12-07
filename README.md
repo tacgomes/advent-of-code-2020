@@ -6,20 +6,17 @@ Solutions to the [Advent of Code], 2020 edition.
 
 ## Building and Running
 
-You can either build and run the programs with `cargo`, or build directly with
-`rustc` as no external packages are used.
-
-Following are the instructions to build and run the program to solve the _Part
-1_ of the _Puzzle 01_, with and without `cargo`.
-
-1. With Cargo:
+All the programs are organised in a Cargo workspace. Running the following
+instructions will build all the programs and, as an example, run the program to
+solve the _Part 1_ of the _Puzzle 01_:
 
 ```sh
 cargo build
 cargo run --bin 01-part1 01/input.txt
 ```
 
-2. Without Cargo:
+Most programs do not depend on any external package and therefore can be build
+directly with `rustc`:
 
 ```sh
 cd 01
