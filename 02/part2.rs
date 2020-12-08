@@ -11,7 +11,7 @@ struct PasswordPolicy {
 }
 
 impl PasswordPolicy {
-    fn new(pos1: usize, pos2: usize, letter: char) -> PasswordPolicy {
+    fn new(pos1: usize, pos2: usize, letter: char) -> Self {
         PasswordPolicy { pos1, pos2, letter }
     }
 

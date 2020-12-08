@@ -12,11 +12,11 @@ struct MapPosition {
 }
 
 impl MapPosition {
-    fn new(r: usize, c: usize) -> MapPosition {
+    fn new(r: usize, c: usize) -> Self {
         MapPosition { r, c }
     }
 
-    fn advance(&mut self, movement: &MapPosition) {
+    fn advance(&mut self, movement: &Self) {
         self.r += movement.r;
         self.c += movement.c;
     }
@@ -29,7 +29,7 @@ struct Map {
 }
 
 impl Map {
-    fn new(num_rows: usize, num_cols: usize) -> Map {
+    fn new(num_rows: usize, num_cols: usize) -> Self {
         Map {
             num_rows,
             num_cols,

@@ -11,7 +11,7 @@ struct PasswordPolicy {
 }
 
 impl PasswordPolicy {
-    fn new(min: usize, max: usize, letter: char) -> PasswordPolicy {
+    fn new(min: usize, max: usize, letter: char) -> Self {
         PasswordPolicy { min, max, letter }
     }
 
