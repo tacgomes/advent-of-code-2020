@@ -16,7 +16,7 @@ fn abs_diff(x: u32, y: u32) -> u32 {
 fn find_encoding_error(
     file_name: impl AsRef<Path>,
     preamble_size: usize,
-) -> (Vec<u32>, Option<u32>) {
+) -> (Option<u32>, Vec<u32>) {
     let file = File::open(file_name).unwrap();
     let lines = BufReader::new(file).lines();
 
@@ -32,7 +32,7 @@ fn find_encoding_error(
                 .map(|x| abs_diff(num, *x))
                 .any(|x| x != num && preamble.contains(&x))
             {
-                return (numbers, Some(num));
+                return (Some(num), numbers);
             }
             preamble.remove(&numbers[i - preamble_size]);
         }
@@ -41,7 +41,7 @@ fn find_encoding_error(
         preamble.insert(num);
     }
 
-    (numbers, None)
+    (None, numbers)
 }
 
 fn find_encryption_weakness(error_num: Option<u32>, numbers: &[u32]) -> Option<u32> {
@@ -70,7 +70,7 @@ fn main() {
     let file_name = env::args().nth(1).unwrap();
     let preamble_size = env::args().nth(2).unwrap().parse::<usize>().unwrap();
 
-    let (numbers, error_num) = find_encoding_error(file_name, preamble_size);
+    let (error_num, numbers) = find_encoding_error(file_name, preamble_size);
     let encryption_weakness = find_encryption_weakness(error_num, &numbers);
     println!("Result (Part 1): {:?}", error_num);
     println!("Result (Part 2): {:?}", encryption_weakness);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        let (numbers, error_num) = find_encoding_error("example.txt", 5);
+        let (error_num, numbers) = find_encoding_error("example.txt", 5);
         let encryption_weakness = find_encryption_weakness(error_num, &numbers);
         assert_eq!(error_num, Some(127));
         assert_eq!(encryption_weakness, Some(62));
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_puzzle_input() {
-        let (numbers, error_num) = find_encoding_error("input.txt", 25);
+        let (error_num, numbers) = find_encoding_error("input.txt", 25);
         let encryption_weakness = find_encryption_weakness(error_num, &numbers);
         assert_eq!(error_num, Some(57195069));
         assert_eq!(encryption_weakness, Some(7409241));
