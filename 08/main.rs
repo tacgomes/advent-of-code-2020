@@ -124,7 +124,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_example_input_part_1() {
+    fn test_example_input() {
         let boot_code = BootCode::from_file("example.txt");
         assert_eq!(boot_code.run(), BootCodeResult::Cyclic(5));
         assert_eq!(boot_code.run_with_fix(), BootCodeResult::Terminated(8));
