@@ -2,7 +2,13 @@
 
 ![Rust workflow](https://github.com/tacgomes/AoC-2020/workflows/Rust/badge.svg)
 
-Solutions to the [Advent of Code], 2020 edition.
+My solutions in Rust to the [Advent of Code], 2020 edition.
+
+I deliberately choose not to use any external Cargo package to practice
+exercising the core features of the language. The exception to this rule was on
+_Puzzle 07_ where not using an external package such as Regex would make
+parsing the input a very tedious task. For the sake of simplicity, I skipped
+all error handling and therefore all the programs assume valid input.
 
 ## Building and Running
 
