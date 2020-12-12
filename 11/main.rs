@@ -102,12 +102,7 @@ impl SeatingSystem {
             .sum()
     }
 
-    fn scan_with_move(
-        &self,
-        mut row: isize,
-        mut col: isize,
-        movement: Movement,
-    ) -> u32 {
+    fn scan_with_move(&self, mut row: isize, mut col: isize, movement: Movement) -> u32 {
         row += movement.0;
         col += movement.1;
         if row < 0 || col < 0 || row == self.num_rows() || col == self.num_cols() {
