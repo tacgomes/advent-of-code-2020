@@ -46,7 +46,7 @@ impl SeatingSystem {
                     'L' => SeatStatus::Empty,
                     '#' => SeatStatus::Occupied,
                     '.' => SeatStatus::Floor,
-                    _ => panic!(),
+                    _ => unreachable!(),
                 })
                 .collect();
             seats.push(row);
