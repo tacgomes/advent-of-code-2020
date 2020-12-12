@@ -35,7 +35,10 @@ fn count_arrangements(file_name: impl AsRef<Path>) -> u64 {
     let jolts = read_jolts(file_name);
     let mut cache = HashMap::new();
 
-    // Assume all elements are unique
+    // NB: while this solution works and it is not inefficient due the
+    // use of dynamic programming, there are simpler ways of calculating
+    // the number of arrangements. See:
+    // https://www.reddit.com/r/adventofcode/comments/ka8z8x/2020_day_10_solutions/
     (0..3)
         .map(|i| count_arrangements_util(0, i, &jolts, &mut cache))
         .sum()
