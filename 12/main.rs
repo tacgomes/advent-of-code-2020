@@ -157,34 +157,12 @@ impl ShipNavigation {
                 Movement::East(units) => wp_x += units,
                 Movement::South(units) => wp_y -= units,
                 Movement::West(units) => wp_x -= units,
-                Movement::Right(rotation) => match rotation {
-                    Rotation::D090 => {
-                        mem::swap(&mut wp_x, &mut wp_y);
-                        wp_y = wp_y.neg();
-                    }
-                    Rotation::D180 => {
-                        wp_x *= -1;
-                        wp_y *= -1;
-                    }
-                    Rotation::D270 => {
-                        mem::swap(&mut wp_x, &mut wp_y);
-                        wp_x = wp_x.neg();
-                    }
-                },
-                Movement::Left(rotation) => match rotation {
-                    Rotation::D090 => {
-                        mem::swap(&mut wp_x, &mut wp_y);
-                        wp_x = wp_x.neg();
-                    }
-                    Rotation::D180 => {
-                        wp_x = wp_x.neg();
-                        wp_y = wp_y.neg();
-                    }
-                    Rotation::D270 => {
-                        mem::swap(&mut wp_x, &mut wp_y);
-                        wp_y = wp_y.neg();
-                    }
-                },
+                Movement::Right(rotation) => {
+                    Self::rotate_coord_clockwise(&mut wp_x, &mut wp_y, rotation)
+                }
+                Movement::Left(rotation) => {
+                    Self::rotate_coord_anticlockwise(&mut wp_x, &mut wp_y, rotation)
+                }
                 Movement::Forward(units) => {
                     ship_x += wp_x * units;
                     ship_y += wp_y * units;
@@ -193,6 +171,40 @@ impl ShipNavigation {
         }
 
         (ship_x.abs() + ship_y.abs()) as usize
+    }
+
+    fn rotate_coord_clockwise<'a>(x: &'a mut isize, y: &'a mut isize, rotation: &Rotation) {
+        match rotation {
+            Rotation::D090 => {
+                mem::swap(&mut *x, &mut *y);
+                *y = y.neg();
+            }
+            Rotation::D180 => {
+                *x = x.neg();
+                *y = y.neg();
+            }
+            Rotation::D270 => {
+                mem::swap(&mut *x, &mut *y);
+                *x = x.neg();
+            }
+        }
+    }
+
+    fn rotate_coord_anticlockwise<'a>(x: &'a mut isize, y: &'a mut isize, rotation: &Rotation) {
+        match rotation {
+            Rotation::D090 => {
+                mem::swap(&mut *x, &mut *y);
+                *x = x.neg();
+            }
+            Rotation::D180 => {
+                *x = x.neg();
+                *y = y.neg();
+            }
+            Rotation::D270 => {
+                mem::swap(&mut *x, &mut *y);
+                *y = y.neg();
+            }
+        }
     }
 }
 
