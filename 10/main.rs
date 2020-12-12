@@ -37,7 +37,9 @@ fn count_arrangements(file_name: impl AsRef<Path>) -> u64 {
 
     // NB: while this solution works and it is not inefficient due the
     // use of dynamic programming, there are simpler ways of calculating
-    // the number of arrangements. See:
+    // the number of arrangements. In the page referred by the following
+    // link, the solution posted by user `Zealousideal_Bit_601` is
+    // simple and well explained:
     // https://www.reddit.com/r/adventofcode/comments/ka8z8x/2020_day_10_solutions/
     (0..3)
         .map(|i| count_arrangements_util(0, i, &jolts, &mut cache))
