@@ -1,0 +1,9 @@
+[package]
+name = "AoC-2020-day-13"
+version = "0.1.0"
+authors = ["Tiago Gomes <tacg@tacgomes.com>"]
+edition = "2018"
+
+[[bin]]
+name = "13"
+path = "main.rs"
