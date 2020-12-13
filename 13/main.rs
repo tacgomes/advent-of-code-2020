@@ -51,6 +51,9 @@ impl BusSchedule {
     }
 
     fn part2_brute_force(&self) -> Option<isize> {
+        // TODO: add an implementation of part 2 using the much more
+        // efficient Chinese Remainder Theorem.
+
         let highest_bus_id = self.bus_ids.iter().max().unwrap();
         let highest_bus_offset = self
             .departing_offsets
