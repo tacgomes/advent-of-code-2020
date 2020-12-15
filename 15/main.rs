@@ -11,23 +11,23 @@ fn calculate_num(file_name: impl AsRef<Path>, target_turn: usize) -> usize {
     file.read_to_string(&mut numbers).unwrap();
 
     let mut spoken_numbers = HashMap::new();
-    let mut last_number_spoken = 0;
+    let mut last_turn_number = 0;
 
     for (turn, num) in numbers.trim().split(',').enumerate() {
-        last_number_spoken = num.parse::<usize>().unwrap();
-        spoken_numbers.insert(last_number_spoken, turn + 1);
+        last_turn_number = num.parse::<usize>().unwrap();
+        spoken_numbers.insert(last_turn_number, turn + 1);
     }
 
     for turn in spoken_numbers.len()..target_turn {
-        let this_turn_number = match spoken_numbers.get(&last_number_spoken) {
+        let this_turn_number = match spoken_numbers.get(&last_turn_number) {
             None => 0,
             Some(t) => turn - t,
         };
-        spoken_numbers.insert(last_number_spoken, turn);
-        last_number_spoken = this_turn_number;
+        spoken_numbers.insert(last_turn_number, turn);
+        last_turn_number = this_turn_number;
     }
 
-    last_number_spoken
+    last_turn_number
 }
 
 fn main() {
