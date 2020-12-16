@@ -60,6 +60,13 @@ name = "AoC-2020-day-15"
 version = "0.1.0"
 
 [[package]]
+name = "AoC-2020-day-16"
+version = "0.1.0"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "AoC-2020-day-17"
 version = "0.1.0"
 
