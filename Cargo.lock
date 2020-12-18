@@ -60,6 +60,10 @@ name = "AoC-2020-day-15"
 version = "0.1.0"
 
 [[package]]
+name = "AoC-2020-day-17"
+version = "0.1.0"
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
