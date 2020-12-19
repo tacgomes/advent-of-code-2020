@@ -37,6 +37,7 @@ impl ConwayCubeSystem {
             }
         }
 
+        // Calculate cartesian product
         let neighs = (-1..=1)
             .flat_map(|x| {
                 (-1..=1)
