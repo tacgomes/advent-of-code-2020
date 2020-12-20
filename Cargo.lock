@@ -71,6 +71,10 @@ name = "AoC-2020-day-17"
 version = "0.1.0"
 
 [[package]]
+name = "AoC-2020-day-18"
+version = "0.1.0"
+
+[[package]]
 name = "AoC-2020-day-19"
 version = "0.1.0"
 dependencies = [
