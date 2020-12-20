@@ -31,7 +31,6 @@ fn find_jolt_diff(file_name: impl AsRef<Path>) -> Option<u32> {
     Some(diff1 * diff3)
 }
 
-
 fn count_arrangements(file_name: impl AsRef<Path>) -> u64 {
     let jolts = read_jolts(file_name);
     let mut cache = HashMap::new();
