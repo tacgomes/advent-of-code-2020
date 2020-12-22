@@ -3,12 +3,10 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
-
 struct _Tile {
     tile_id: usize,
     borders: [Vec<char>; 4],
 }
-
 
 fn calculate_part1(file_name: impl AsRef<Path>) -> usize {
     let content = fs::read_to_string(file_name).unwrap();
