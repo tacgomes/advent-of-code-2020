@@ -1,91 +1,93 @@
 use std::env;
 use std::process;
 
-fn do_move(cups: &mut Vec<usize>, mut cup_index: usize, lowest: usize, highest: usize) -> usize {
-    let remove_idx = |idx, len| if (idx + 1) < len { idx + 1 } else { 0 };
+const PART_2_NUM_CUPS: usize = 1_000_000;
+const PART_2_NUM_ITERS: usize = 10_000_000;
 
-    let mut destination = cups[cup_index] - 1;
+fn iterate(cups: &mut Vec<usize>, cup: usize) -> usize {
+    let lowest = 1;
+    let highest = cups.len() - 1;
 
-    let adjust = cups.len() as isize - (cup_index as isize + 1) - 3;
+    let a = cups[cup];
+    let b = cups[a];
+    let c = cups[b];
 
-    let (a, b, c) = (
-        cups.remove(remove_idx(cup_index, cups.len())),
-        cups.remove(remove_idx(cup_index, cups.len())),
-        cups.remove(remove_idx(cup_index, cups.len())),
-    );
+    cups[cup] = cups[c];
 
-    if adjust < 0 {
-        cup_index = (cup_index as isize + adjust) as usize;
-    }
-
-    loop {
-        if destination < lowest {
-            destination = highest;
+    let mut dest = cup - 1;
+    while dest == a || dest == b || dest == c || dest < lowest {
+        if dest < lowest {
+            dest = highest;
+        } else {
+            dest -= 1;
         }
-
-        if destination != a && destination != b && destination != c {
-            break;
-        }
-
-        destination -= 1;
     }
 
-    let position = cups.iter().position(|&x| x == destination).unwrap();
+    let dest_next = cups[dest];
+    cups[dest] = a;
+    cups[c] = dest_next;
 
-    cups.insert(position + 1, c);
-    cups.insert(position + 1, b);
-    cups.insert(position + 1, a);
-
-    if position < cup_index {
-        cup_index += 3;
-    }
-
-    (cup_index + 1) % cups.len()
+    cups[cup]
 }
 
 fn calculate_part1(cups: &str) -> String {
-    let mut cups = cups
+    let input = cups
         .chars()
         .map(|x| x.to_digit(10).unwrap() as usize)
         .collect::<Vec<usize>>();
 
-    let lowest = *cups.iter().min().unwrap();
-    let highest = *cups.iter().max().unwrap();
-
-    let mut cup_index = 0;
-    for _r in 0..100 {
-        cup_index = do_move(&mut cups, cup_index, lowest, highest);
+    let mut cups = vec![0; input.len() + 1];
+    for i in 0..input.len() - 1 {
+        cups[input[i]] = input[i + 1];
     }
 
+    cups[input[input.len() - 1]] = input[0];
+
+    let mut cup = input[0];
+    for _ in 0..100 {
+        cup = iterate(&mut cups, cup);
+    }
+
+    let mut cup = cups[1];
     let mut result = String::new();
-    let cup1_position = cups.iter().position(|&x| x == 1).unwrap();
-    for i in cup1_position + 1..cup1_position + cups.len() {
-        result.push(cups[i % cups.len()].to_string().chars().next().unwrap());
+    while cup != 1 {
+        result.push(cup.to_string().chars().next().unwrap());
+        cup = cups[cup];
     }
 
     result
 }
 
 fn calculate_part2(cups: &str) -> usize {
-    let mut cups = cups
+    let input = cups
         .chars()
         .map(|x| x.to_digit(10).unwrap() as usize)
         .collect::<Vec<usize>>();
 
-    let lowest = *cups.iter().min().unwrap();
-    let highest = *cups.iter().max().unwrap();
-
-    for i in highest..1_000_000 {
-        cups.push(i);
+    let mut cups = vec![0; PART_2_NUM_CUPS + 1];
+    for i in 0..input.len() - 1 {
+        cups[input[i]] = input[i + 1];
     }
 
-    let mut cup_index = 0;
-    for _r in 0..10_000_000 {
-        cup_index = do_move(&mut cups, cup_index, lowest, highest);
+    cups[*input.iter().last().unwrap()] = input.len() + 1;
+
+    for (i, cup) in cups
+        .iter_mut()
+        .enumerate()
+        .take(PART_2_NUM_CUPS)
+        .skip(input.len() + 1)
+    {
+        *cup = i + 1;
     }
 
-    let cup1_position = cups.iter().position(|&x| x == 1).unwrap();
-    cups[cup1_position - 1] * cups[cup1_position - 2]
+    *cups.last_mut().unwrap() = input[0];
+
+    let mut cup = input[0];
+    for _ in 0..PART_2_NUM_ITERS {
+        cup = iterate(&mut cups, cup);
+    }
+
+    cups[1] * cups[cups[1]]
 }
 
 fn main() {
@@ -95,9 +97,9 @@ fn main() {
     }
 
     let part1 = calculate_part1(&env::args().nth(1).unwrap());
-    // let part2 = calculate_part2(&env::args().nth(1).unwrap());
+    let part2 = calculate_part2(&env::args().nth(1).unwrap());
     println!("Result (Part 1): {}", part1);
-    // println!("Result (Part 2): {}", part2);
+    println!("Result (Part 2): {}", part2);
 }
 
 #[cfg(test)]
@@ -107,10 +109,12 @@ mod tests {
     #[test]
     fn test_example_input() {
         assert_eq!(calculate_part1("389125467"), "67384529");
+        assert_eq!(calculate_part2("389125467"), 149245887792);
     }
 
     #[test]
     fn test_puzzle_input() {
         assert_eq!(calculate_part1("418976235"), "96342875");
+        assert_eq!(calculate_part2("418976235"), 563362809504);
     }
 }
