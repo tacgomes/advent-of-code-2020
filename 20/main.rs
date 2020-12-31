@@ -1,5 +1,7 @@
+use std::collections::VecDeque;
 use std::env;
 use std::fs;
+use std::mem;
 use std::path::Path;
 use std::process;
 
@@ -8,20 +10,20 @@ const RIGHT: usize = 1;
 const BOTTOM: usize = 2;
 const LEFT: usize = 3;
 
+type Config = Vec<Vec<Option<Tile>>>;
+
+#[derive(Clone)]
 struct Tile {
     tile_id: usize,
-    alignments: Vec<Vec<String>>,
-    current_alignment: usize,
+    configs: Vec<Vec<String>>,
+    current_config: usize,
 }
 
 impl Tile {
     fn new(tile_id: usize, borders: Vec<String>) -> Self {
-        let mut alignments = vec![];
+        let mut configs = vec![];
 
-        // println!("\ntileid: {}", tile_id);
-        // println!("borders:  {:?}", borders);
-
-        alignments.push(borders.clone());
+        configs.push(borders.clone());
 
         let vertically_mirrored = vec![
             borders[BOTTOM].clone(),
@@ -30,9 +32,7 @@ impl Tile {
             borders[LEFT].chars().rev().clone().collect(),
         ];
 
-        // println!("vertical: {:?}", vertically_mirrored);
-
-        alignments.push(vertically_mirrored.clone());
+        configs.push(vertically_mirrored.clone());
 
         for border in [&borders, &vertically_mirrored].iter() {
             let mut border = border.to_vec();
@@ -43,55 +43,114 @@ impl Tile {
                     border[RIGHT].chars().rev().clone().collect(),
                     border[BOTTOM].clone(),
                 ];
-                // println!("rotation: {:?}", border);
-                alignments.push(border.clone());
+                configs.push(border.clone());
             }
         }
 
         Tile {
             tile_id,
-            alignments,
-            current_alignment: 0,
+            configs,
+            current_config: 0,
         }
     }
 
+    fn id(&self) -> usize {
+        self.tile_id
+    }
+
     fn next_alignment(&mut self) {
-        self.current_alignment += 1;
-        self.current_alignment %= self.alignments.len();
+        self.current_config += 1;
+        self.current_config %= self.configs.len();
     }
 
     fn top(&self) -> &str {
-        return &self.alignments[self.current_alignment][TOP];
+        &self.configs[self.current_config][TOP]
     }
 
     fn right(&self) -> &str {
-        return &self.alignments[self.current_alignment][RIGHT];
+        &self.configs[self.current_config][RIGHT]
     }
 
     fn bottom(&self) -> &str {
-        return &self.alignments[self.current_alignment][BOTTOM];
+        &self.configs[self.current_config][BOTTOM]
     }
 
     fn left(&self) -> &str {
-        return &self.alignments[self.current_alignment][LEFT];
+        &self.configs[self.current_config][LEFT]
     }
 }
 
-fn find_alignment(_tiles: &mut Vec<Tile>) -> Vec<Vec<&Tile>> {
-    let mut _array = vec![];
-    _array
+fn next_cell(row: usize, col: usize, len: usize) -> (usize, usize) {
+    let mut next_row = row;
+    let mut next_col = col + 1;
+    if col + 1 == len {
+        next_row += 1;
+        next_col = 0;
+    }
+    (next_row, next_col)
+}
+
+fn check_config(config: &Config) -> bool {
+    let match_vertical = |x: &Option<Tile>, y: &Option<Tile>| {
+        y.is_none() || x.as_ref().unwrap().left() == y.as_ref().unwrap().right()
+    };
+    let match_horizont = |x: &Option<Tile>, y: &Option<Tile>| {
+        y.is_none() || x.as_ref().unwrap().bottom() == y.as_ref().unwrap().top()
+    };
+    config
+        .iter()
+        .all(|r| r.windows(2).all(|w| match_vertical(&w[0], &w[1])))
+        && config
+            .windows(2)
+            .all(|w| w[0].iter().zip(&w[1]).all(|(x, y)| match_horizont(x, y)))
+}
+
+fn find_config(
+    mut tiles: &mut VecDeque<Tile>,
+    row: usize,
+    col: usize,
+    mut config: &mut Config,
+) -> bool {
+    if !check_config(&config) {
+        return false;
+    }
+    if row == config.len() {
+        return true;
+    }
+    let (next_row, next_col) = next_cell(row, col, config.len());
+
+    let mut config_ok = false;
+    for _ in 0..tiles.len() {
+        let tile = tiles.pop_front().unwrap();
+        config[row][col] = Some(tile);
+        for _ in 0..8 {
+            config_ok = find_config(&mut tiles, next_row, next_col, &mut config);
+            if config_ok {
+                break;
+            }
+            config[row][col].as_mut().unwrap().next_alignment();
+        }
+
+        match config_ok {
+            true => return true,
+            false => tiles.push_back(mem::replace(&mut config[row][col], None).unwrap()),
+        }
+    }
+
+    config[row][col] = None;
+    false
 }
 
 fn calculate_part1(file_name: impl AsRef<Path>) -> usize {
     let content = fs::read_to_string(file_name).unwrap();
     let blocks: Vec<_> = content.trim().split("\n\n").collect();
 
-    let mut tiles = vec![];
+    let mut tiles = VecDeque::new();
 
     for tile in blocks {
         let mut lines = tile.split('\n');
         let tile_id = &lines.next().unwrap();
-        let tile_id = &tile_id[5..tile_id.len() - 1].parse::<usize>().unwrap();
+        let tile_id = tile_id[5..tile_id.len() - 1].parse::<usize>().unwrap();
 
         let mut borders = vec![String::new(); 4];
         borders[0] = lines.clone().next().unwrap().to_string();
@@ -101,11 +160,19 @@ fn calculate_part1(file_name: impl AsRef<Path>) -> usize {
             borders[1].push(line.chars().last().unwrap());
         }
 
-        tiles.push(Tile::new(*tile_id, borders));
+        tiles.push_back(Tile::new(tile_id, borders.clone()));
     }
 
-    let _array = find_alignment(&mut tiles);
-    0
+    let len = (tiles.len() as f64).sqrt() as usize;
+    let mut config = vec![vec![None; len]; len];
+
+    let found_config = find_config(&mut tiles, 0, 0, &mut config);
+    assert!(found_config);
+
+    [(0, 0), (0, len - 1), (len - 1, 0), (len - 1, len - 1)]
+        .iter()
+        .map(|&(r, c)| config[r][c].as_ref().unwrap().id())
+        .product()
 }
 
 fn main() {
@@ -123,14 +190,12 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_example_input() {
-        assert_eq!(calculate_part1("example.txt"), 0);
+        assert_eq!(calculate_part1("example.txt"), 20899048083289);
     }
 
     #[test]
-    #[ignore]
     fn test_puzzle_input() {
-        assert_eq!(calculate_part1("input.txt"), 0);
+        assert_eq!(calculate_part1("input.txt"), 30425930368573);
     }
 }
