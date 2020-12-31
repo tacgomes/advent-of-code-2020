@@ -81,13 +81,10 @@ impl Tile {
 }
 
 fn next_cell(row: usize, col: usize, len: usize) -> (usize, usize) {
-    let mut next_row = row;
-    let mut next_col = col + 1;
-    if col + 1 == len {
-        next_row += 1;
-        next_col = 0;
+    match col + 1 == len {
+        true => (row + 1, 0),
+        false => (row, col + 1),
     }
-    (next_row, next_col)
 }
 
 fn check_config(config: &Config) -> bool {
