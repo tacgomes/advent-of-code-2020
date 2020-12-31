@@ -87,6 +87,7 @@ fn next_cell(row: usize, col: usize, len: usize) -> (usize, usize) {
     }
 }
 
+#[allow(clippy::ptr_arg)]
 fn check_config(config: &Config) -> bool {
     let match_vertical = |x: &Option<Tile>, y: &Option<Tile>| {
         y.is_none() || x.as_ref().unwrap().left() == y.as_ref().unwrap().right()
