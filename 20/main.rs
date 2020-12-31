@@ -157,7 +157,7 @@ fn calculate_part1(file_name: impl AsRef<Path>) -> usize {
             borders[1].push(line.chars().last().unwrap());
         }
 
-        tiles.push_back(Tile::new(tile_id, borders.clone()));
+        tiles.push_back(Tile::new(tile_id, borders));
     }
 
     let len = (tiles.len() as f64).sqrt() as usize;
