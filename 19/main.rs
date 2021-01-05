@@ -6,49 +6,36 @@ use std::process;
 
 #[derive(Debug)]
 enum Rule {
-    Letter(char),
-    Expression(Vec<Vec<usize>>),
+    Terminal(char),
+    Conjunction(Vec<usize>),
+    Disjunction(Vec<usize>, Vec<usize>),
 }
 
-fn matches(message: &[char], rule_number: usize, rules: &HashMap<usize, Rule>) -> Option<usize> {
-    if message.is_empty() {
-        return None;
+fn merge(a: &[usize], b: &[usize]) -> Vec<usize> {
+    a.iter().chain(b.iter()).cloned().collect()
+}
+
+fn matches(queue: &[usize], input: &str, rules: &HashMap<usize, Rule>) -> bool {
+    match (queue.is_empty(), input.is_empty()) {
+        (true, true) => return true,
+        (true, _) => return false,
+        (_, true) => return false,
+        _ => (),
     }
 
-    let rule = rules.get(&rule_number).unwrap();
+    let rule = rules.get(&queue[0]).unwrap();
+
     match rule {
-        Rule::Letter(c) => {
-            if message[0] == *c {
-                Some(1)
-            } else {
-                None
-            }
-        }
-        Rule::Expression(or_expressions) => {
-            for or_expression in or_expressions {
-                let mut total_consumed = 0;
-                let mut found_match = true;
-
-                for and_expression in or_expression {
-                    let result = matches(&message[total_consumed..], *and_expression, rules);
-                    if let Some(consumed) = result {
-                        total_consumed += consumed;
-                    } else {
-                        found_match = false;
-                        break;
-                    }
-                }
-
-                if found_match {
-                    return Some(total_consumed);
-                }
-            }
-            None
+        Rule::Terminal(t) => input.starts_with(*t) && matches(&queue[1..], &input[1..], rules),
+        Rule::Conjunction(c) => matches(&merge(c, &queue[1..]), input, rules),
+        Rule::Disjunction(a, b) => {
+            matches(&merge(a, &queue[1..]), input, rules)
+                || matches(&merge(b, &queue[1..]), input, rules)
         }
     }
 }
 
-fn calculate_valid_strings_count(file_name: impl AsRef<Path>) -> usize {
+fn parse(file_name: impl AsRef<Path>) -> (HashMap<usize, Rule>, Vec<String>) {
     let content = fs::read_to_string(file_name).unwrap();
     let blocks: Vec<_> = content.split("\n\n").collect();
 
@@ -56,37 +43,39 @@ fn calculate_valid_strings_count(file_name: impl AsRef<Path>) -> usize {
 
     for line in blocks[0].trim().split('\n') {
         let parts = line.split(':').collect::<Vec<_>>();
-        let rule_number = parts[0].parse::<usize>().unwrap();
-        let rule_text = parts[1].trim();
+        let rule_num = parts[0].parse::<usize>().unwrap();
+        let rule_rhs = parts[1].trim();
 
-        if rule_text.trim().starts_with('"') {
-            rules.insert(rule_number, Rule::Letter(rule_text.chars().nth(1).unwrap()));
+        if rule_rhs.trim().starts_with('"') {
+            rules.insert(rule_num, Rule::Terminal(rule_rhs.chars().nth(1).unwrap()));
         } else {
-            let mut expression = vec![];
-            let mut and_expression = vec![];
-            for token in rule_text.split_whitespace() {
-                match token {
-                    "|" => {
-                        expression.push(and_expression.clone());
-                        and_expression.clear();
-                    }
-                    _ => and_expression.push(token.parse::<usize>().unwrap()),
-                }
-            }
-            expression.push(and_expression.clone());
-            rules.insert(rule_number, Rule::Expression(expression));
+            let disjunctions = rule_rhs
+                .split('|')
+                .map(|x| {
+                    x.split_whitespace()
+                        .map(|y| y.parse::<usize>().unwrap())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            let rule = match disjunctions.len() {
+                1 => Rule::Conjunction(disjunctions[0].clone()),
+                2 => Rule::Disjunction(disjunctions[0].clone(), disjunctions[1].clone()),
+                _ => panic!(),
+            };
+
+            rules.insert(rule_num, rule);
         }
     }
 
-    blocks[1]
-        .trim()
-        .split('\n')
-        .map(|m| m.chars().collect::<Vec<_>>())
-        .filter(|m| match matches(&m, 0, &rules) {
-            Some(consumed) => m.len() == consumed,
-            None => false,
-        })
-        .count()
+    let strings = blocks[1].lines().map(|x| x.to_string()).collect();
+
+    (rules, strings)
+}
+
+fn count_valid_strings(file_name: impl AsRef<Path>) -> usize {
+    let (rules, strings) = parse(file_name);
+    strings.iter().filter(|m| matches(&[0], m, &rules)).count()
 }
 
 fn main() {
@@ -95,7 +84,7 @@ fn main() {
         process::exit(1);
     }
 
-    let count = calculate_valid_strings_count(env::args().nth(1).unwrap());
+    let count = count_valid_strings(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
 
@@ -105,24 +94,26 @@ mod tests {
 
     #[test]
     fn test_example_input_1() {
-        assert_eq!(calculate_valid_strings_count("example1.txt"), 2);
-    }
-
-    // TODO: fix part 2
-    #[test]
-    #[ignore]
-    fn test_example_input_2() {
-        assert_eq!(calculate_valid_strings_count("example2.txt"), 12);
+        assert_eq!(count_valid_strings("example1.txt"), 2);
     }
 
     #[test]
-    fn test_puzzle_input_1() {
-        assert_eq!(calculate_valid_strings_count("input-part1.txt"), 285);
+    fn test_example_input_2_part_1() {
+        assert_eq!(count_valid_strings("example2-part1.txt"), 3);
     }
 
     #[test]
-    #[ignore]
-    fn test_puzzle_input_2() {
-        assert_eq!(calculate_valid_strings_count("input-part2.txt"), 0);
+    fn test_example_input_2_part_2() {
+        assert_eq!(count_valid_strings("example2-part2.txt"), 12);
+    }
+
+    #[test]
+    fn test_puzzle_input_1_part_1() {
+        assert_eq!(count_valid_strings("input-part1.txt"), 285);
+    }
+
+    #[test]
+    fn test_puzzle_input_2_part_2() {
+        assert_eq!(count_valid_strings("input-part2.txt"), 412);
     }
 }
