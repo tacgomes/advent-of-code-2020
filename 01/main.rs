@@ -6,7 +6,24 @@ use std::process;
 
 const TARGET_SUM: i32 = 2020;
 
-fn solve(file_name: impl AsRef<Path>) -> Option<i32> {
+fn solve_part1(file_name: impl AsRef<Path>) -> Option<i32> {
+    let content = fs::read_to_string(file_name).unwrap();
+
+    let mut set = HashSet::new();
+
+    for line in content.lines() {
+        let n = line.parse::<i32>().unwrap();
+        let diff = TARGET_SUM - n;
+        if set.contains(&diff) {
+            return Some(n * diff);
+        }
+        set.insert(n);
+    }
+
+    None
+}
+
+fn solve_part2(file_name: impl AsRef<Path>) -> Option<i32> {
     let content = fs::read_to_string(&file_name).unwrap();
 
     let mut vec = vec![];
@@ -39,8 +56,10 @@ fn main() {
         process::exit(1);
     }
 
-    let result = solve(env::args().nth(1).unwrap());
-    println!("Result: {:?}", result);
+    let part1 = solve_part1(env::args().nth(1).unwrap());
+    let part2 = solve_part2(env::args().nth(1).unwrap());
+    println!("Result (Part 1):{:?}", part1);
+    println!("Result (Part 2):{:?}", part2);
 }
 
 #[cfg(test)]
@@ -49,11 +68,13 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(solve("example.txt"), Some(241861950));
+        assert_eq!(solve_part1("example.txt"), Some(514579));
+        assert_eq!(solve_part2("example.txt"), Some(241861950));
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(solve("input.txt"), Some(23869440));
+        assert_eq!(solve_part1("input.txt"), Some(918339));
+        assert_eq!(solve_part2("input.txt"), Some(23869440));
     }
 }
