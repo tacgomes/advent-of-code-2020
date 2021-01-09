@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
@@ -10,69 +9,72 @@ use regex::Regex;
 
 const BAG: &str = "shiny gold";
 
-struct BagsManager {
-    outer_bags_map: HashMap<String, Vec<String>>,
-    inner_bags_count: HashMap<String, HashMap<String, usize>>,
+type OuterBags = HashMap<String, Vec<String>>;
+type InnerBagsCount = HashMap<String, HashMap<String, usize>>;
+
+struct Bags {
+    outer_bags: OuterBags,
+    inner_bags_count: InnerBagsCount,
 }
 
-impl BagsManager {
-    fn new(file_name: impl AsRef<Path>) -> Self {
-        let file = File::open(file_name).unwrap();
-        let lines = BufReader::new(file).lines();
-
-        let re1 = Regex::new(r"(?P<bag>.+) bags contain (?P<inner_bags>.+)\.").unwrap();
-        let re2 = Regex::new(r"(?P<count>\d+) (?P<inner_bag>.+?) bags?").unwrap();
-
-        let mut outer_bags_map = HashMap::new();
-        let mut inner_bags_count = HashMap::new();
-
-        for line in lines {
-            let line = line.unwrap();
-            let caps = re1.captures(&line).unwrap();
-            let (bag, inner_bags) = (caps["bag"].to_string(), &caps["inner_bags"]);
-            for cap in re2.captures_iter(&inner_bags) {
-                let (count, inner_bag) =
-                    (cap["count"].parse().unwrap(), cap["inner_bag"].to_string());
-                outer_bags_map
-                    .entry(inner_bag.clone())
-                    .or_insert_with(Vec::new)
-                    .push(bag.clone());
-                inner_bags_count
-                    .entry(bag.clone())
-                    .or_insert_with(HashMap::new)
-                    .insert(inner_bag, count);
-            }
-        }
-
-        BagsManager {
-            outer_bags_map,
+impl Bags {
+    fn new(outer_bags: OuterBags, inner_bags_count: InnerBagsCount) -> Self {
+        Bags {
+            outer_bags,
             inner_bags_count,
         }
     }
 
-    fn bag_colors_count(&self, bag: &str) -> usize {
-        let mut bag_set = HashSet::new();
-        self.bag_colors_count_util(bag, &mut bag_set);
-        bag_set.len()
+    fn count_bag_colors(&self, bag: &str) -> usize {
+        let mut bags = HashSet::new();
+        self.count_bag_colors_util(bag, &mut bags);
+        bags.len()
     }
 
-    fn bag_colors_count_util(&self, bag: &str, mut bag_set: &mut HashSet<String>) {
-        if let Some(outer_bags) = self.outer_bags_map.get(&bag.to_string()) {
+    fn count_bag_colors_util(&self, bag: &str, mut bags: &mut HashSet<String>) {
+        if let Some(outer_bags) = self.outer_bags.get(&bag.to_owned()) {
             for outer_bag in outer_bags {
-                bag_set.insert(outer_bag.to_string());
-                self.bag_colors_count_util(&outer_bag, &mut bag_set);
+                bags.insert(outer_bag.to_owned());
+                self.count_bag_colors_util(&outer_bag, &mut bags);
             }
         }
     }
 
-    fn bags_required(&self, bag: &str) -> usize {
+    fn count_bags_required(&self, bag: &str) -> usize {
         self.inner_bags_count
-            .get(&bag.to_string())
+            .get(&bag.to_owned())
             .unwrap_or(&HashMap::new())
             .iter()
-            .map(|(inner_bag, count)| count + count * self.bags_required(inner_bag))
+            .map(|(inner_bag, count)| count + count * self.count_bags_required(inner_bag))
             .sum()
     }
+}
+
+fn parse_input(file_name: impl AsRef<Path>) -> (OuterBags, InnerBagsCount) {
+    let re1 = Regex::new(r"(?P<bag>.+) bags contain (?P<inner_bags>.+)\.").unwrap();
+    let re2 = Regex::new(r"(?P<count>\d+) (?P<inner_bag>.+?) bags?").unwrap();
+
+    let content = fs::read_to_string(&file_name).unwrap();
+    let mut outer_bags = HashMap::new();
+    let mut inner_bags_count = HashMap::new();
+
+    for line in content.lines() {
+        let caps = re1.captures(&line).unwrap();
+        let (bag, inner_bags) = (caps["bag"].to_string(), &caps["inner_bags"]);
+        for cap in re2.captures_iter(&inner_bags) {
+            let (count, inner_bag) = (cap["count"].parse().unwrap(), cap["inner_bag"].to_string());
+            outer_bags
+                .entry(inner_bag.clone())
+                .or_insert_with(Vec::new)
+                .push(bag.clone());
+            inner_bags_count
+                .entry(bag.clone())
+                .or_insert_with(HashMap::new)
+                .insert(inner_bag, count);
+        }
+    }
+
+    (outer_bags, inner_bags_count)
 }
 
 fn main() {
@@ -81,11 +83,12 @@ fn main() {
         process::exit(1);
     }
 
-    let bags_manager = BagsManager::new(env::args().nth(1).unwrap());
-    let colors_count = bags_manager.bag_colors_count(BAG);
-    let bags_required = bags_manager.bags_required(BAG);
-    println!("Result (Part 1): {}", colors_count);
-    println!("Result (Part 2): {}", bags_required);
+    let (bags, counts) = parse_input(env::args().nth(1).unwrap());
+    let bags_manager = Bags::new(bags, counts);
+    let part1 = bags_manager.count_bag_colors(BAG);
+    let part2 = bags_manager.count_bags_required(BAG);
+    println!("Result (Part 1): {}", part1);
+    println!("Result (Part 2): {}", part2);
 }
 
 #[cfg(test)]
@@ -94,22 +97,25 @@ mod tests {
 
     #[test]
     fn test_example_input_1() {
-        let bags_manager = BagsManager::new("example1.txt");
-        assert_eq!(bags_manager.bag_colors_count(BAG), 4);
-        assert_eq!(bags_manager.bags_required(BAG), 32);
+        let (bags, counts) = parse_input("example1.txt");
+        let bags_manager = Bags::new(bags, counts);
+        assert_eq!(bags_manager.count_bag_colors(BAG), 4);
+        assert_eq!(bags_manager.count_bags_required(BAG), 32);
     }
 
     #[test]
     fn test_example_input_2() {
-        let bags_manager = BagsManager::new("example2.txt");
-        assert_eq!(bags_manager.bag_colors_count(BAG), 0);
-        assert_eq!(bags_manager.bags_required(BAG), 126);
+        let (bags, counts) = parse_input("example2.txt");
+        let bags_manager = Bags::new(bags, counts);
+        assert_eq!(bags_manager.count_bag_colors(BAG), 0);
+        assert_eq!(bags_manager.count_bags_required(BAG), 126);
     }
 
     #[test]
     fn test_puzzle_input() {
-        let bags_manager = BagsManager::new("input.txt");
-        assert_eq!(bags_manager.bag_colors_count(BAG), 259);
-        assert_eq!(bags_manager.bags_required(BAG), 45018);
+        let (bags, counts) = parse_input("input.txt");
+        let bags_manager = Bags::new(bags, counts);
+        assert_eq!(bags_manager.count_bag_colors(BAG), 259);
+        assert_eq!(bags_manager.count_bags_required(BAG), 45018);
     }
 }
