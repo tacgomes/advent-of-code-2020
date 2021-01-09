@@ -3,12 +3,18 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
+const NUM_QUESTIONS: usize = 26;
+
+// NB: another way to tackle this problem would be to use set union and
+// set intersection to solve part 1 and part 2. However, as the max size
+// of the results is fixed (26), it does not provide advantages.
+
 fn char_index(c: char) -> usize {
     c as usize - 'a' as usize
 }
 
 fn count_group_answers_part1(group_answers: &str) -> usize {
-    let mut results = [false; 26];
+    let mut results = [false; NUM_QUESTIONS];
 
     group_answers
         .chars()
@@ -19,29 +25,33 @@ fn count_group_answers_part1(group_answers: &str) -> usize {
 }
 
 fn count_group_answers_part2(group_answers: &str) -> usize {
-    let mut results = [0; 26];
-    let mut group_size = 0;
+    let mut results = [0; NUM_QUESTIONS];
 
-    for person_answers in group_answers.lines() {
-        person_answers
-            .chars()
-            .for_each(|answer| results[char_index(answer)] += 1);
-        group_size += 1;
-    }
+    group_answers
+        .lines()
+        .flat_map(|x| x.chars())
+        .for_each(|answer| results[char_index(answer)] += 1);
 
-    results.iter().filter(|&&r| r == group_size).count()
+    results
+        .iter()
+        .filter(|&&r| r == group_answers.lines().count())
+        .count()
 }
 
 fn count_answered_part1(file_name: impl AsRef<Path>) -> usize {
-    let content = fs::read_to_string(file_name).unwrap();
-    let group_answers = content.split("\n\n");
-    group_answers.map(|g| count_group_answers_part1(g)).sum()
+    fs::read_to_string(file_name)
+        .unwrap()
+        .split("\n\n")
+        .map(|x| count_group_answers_part1(x))
+        .sum()
 }
 
 fn count_answered_part2(file_name: impl AsRef<Path>) -> usize {
-    let content = fs::read_to_string(file_name).unwrap();
-    let group_answers = content.split("\n\n");
-    group_answers.map(|g| count_group_answers_part2(g)).sum()
+    fs::read_to_string(file_name)
+        .unwrap()
+        .split("\n\n")
+        .map(|x| count_group_answers_part2(x))
+        .sum()
 }
 
 fn main() {
