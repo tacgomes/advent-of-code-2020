@@ -1,7 +1,5 @@
-use std::cmp;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
@@ -21,9 +19,9 @@ fn seat_col(seat: &str) -> usize {
 }
 
 fn find_seat(seat: &str, mut lower: usize, mut upper: usize) -> usize {
-    for c in seat.bytes() {
+    for c in seat.chars() {
         let mid = lower + (upper - lower) / 2;
-        match c as char {
+        match c {
             'F' | 'L' => upper = mid,
             'B' | 'R' => lower = mid + 1,
             _ => unreachable!(),
@@ -32,30 +30,23 @@ fn find_seat(seat: &str, mut lower: usize, mut upper: usize) -> usize {
     lower
 }
 
-fn find_highest_and_free_seats(file_name: impl AsRef<Path>) -> (usize, usize) {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
+fn solve(file_name: impl AsRef<Path>) -> (usize, usize) {
+    let content = fs::read_to_string(&file_name).unwrap();
 
-    let mut highest_seat_id = 0;
-    let mut seats_occupied = [false; ROWS * COLS];
+    let mut seats = [false; ROWS * COLS];
 
-    for line in lines {
-        let line = line.unwrap();
+    for line in content.lines() {
         let row = seat_row(&line[..COLS - 1]);
         let col = seat_col(&line[COLS - 1..]);
         let seat_id = seat_id(row, col);
-        highest_seat_id = cmp::max(highest_seat_id, seat_id);
-        seats_occupied[seat_id] = true;
+        seats[seat_id] = true;
     }
 
-    let first_occupied = seats_occupied.iter().position(|&x| x).unwrap();
-    let first_free = seats_occupied
-        .iter()
-        .skip(first_occupied)
-        .position(|&x| !x)
-        .unwrap();
+    let highest = seats.len() - 1 - seats.iter().rev().position(|&x| x).unwrap();
+    let first_occupied = seats.iter().position(|&x| x).unwrap();
+    let first_free = seats.iter().skip(first_occupied).position(|&x| !x).unwrap();
 
-    (highest_seat_id, first_occupied + first_free)
+    (highest, first_occupied + first_free)
 }
 
 fn main() {
@@ -64,9 +55,9 @@ fn main() {
         process::exit(1);
     }
 
-    let (highest_seat_id, free_seat_id) = find_highest_and_free_seats(env::args().nth(1).unwrap());
-    println!("Result (part 1): {}", highest_seat_id);
-    println!("Result (part 2): {}", free_seat_id);
+    let (highest_seat_id, free_seat_id) = solve(env::args().nth(1).unwrap());
+    println!("Result (Part 1): {}", highest_seat_id);
+    println!("Result (Part 2): {}", free_seat_id);
 }
 
 #[cfg(test)]
@@ -75,11 +66,11 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(find_highest_and_free_seats("example.txt"), (357, 358));
+        assert_eq!(solve("example.txt"), (357, 358));
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(find_highest_and_free_seats("input.txt"), (991, 534));
+        assert_eq!(solve("input.txt"), (991, 534));
     }
 }
