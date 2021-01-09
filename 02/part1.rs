@@ -1,6 +1,5 @@
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
@@ -21,27 +20,28 @@ impl PasswordPolicy {
     }
 }
 
-fn valid_passwords_count(file_name: impl AsRef<Path>) -> u32 {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<(PasswordPolicy, String)> {
+    fs::read_to_string(file_name)
+        .unwrap()
+        .lines()
+        .map(|x| {
+            let mut tokens = x.split_whitespace();
+            let mut range_tokens = tokens.next().unwrap().split('-');
+            let policy = PasswordPolicy::new(
+                range_tokens.next().unwrap().parse::<usize>().unwrap(),
+                range_tokens.next().unwrap().parse::<usize>().unwrap(),
+                tokens.next().unwrap().chars().next().unwrap(),
+            );
+            (policy, tokens.next().unwrap().to_owned())
+        })
+        .collect()
+}
 
-    let mut num_valid_passwords = 0;
-
-    for line in lines {
-        let line = line.unwrap();
-        let tokens: Vec<_> = line.split_whitespace().collect();
-        let range_tokens: Vec<_> = tokens[0].split('-').collect();
-        let policy = PasswordPolicy::new(
-            range_tokens[0].parse::<usize>().unwrap(),
-            range_tokens[1].parse::<usize>().unwrap(),
-            tokens[1].chars().next().unwrap(),
-        );
-
-        if policy.validate_password(&tokens[2]) {
-            num_valid_passwords += 1;
-        }
-    }
-    num_valid_passwords
+fn count_valid_passwords(passwords: &[(PasswordPolicy, String)]) -> usize {
+    passwords
+        .iter()
+        .filter(|(pol, pass)| pol.validate_password(&pass))
+        .count()
 }
 
 fn main() {
@@ -50,7 +50,8 @@ fn main() {
         process::exit(1);
     }
 
-    let count = valid_passwords_count(env::args().nth(1).unwrap());
+    let passwords = parse_input(env::args().nth(1).unwrap());
+    let count = count_valid_passwords(&passwords);
     println!("Result: {}", count);
 }
 
@@ -60,11 +61,13 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(valid_passwords_count("example.txt"), 2);
+        let passwords = parse_input("example.txt");
+        assert_eq!(count_valid_passwords(&passwords), 2);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(valid_passwords_count("input.txt"), 424);
+        let passwords = parse_input("input.txt");
+        assert_eq!(count_valid_passwords(&passwords), 424);
     }
 }
