@@ -14,9 +14,15 @@ impl PasswordPolicy {
         PasswordPolicy { min, max, letter }
     }
 
-    fn validate_password(&self, password: &str) -> bool {
+    fn validate_password_part1(&self, password: &str) -> bool {
         let letter_count = password.matches(self.letter).count();
         letter_count >= self.min && letter_count <= self.max
+    }
+
+    fn validate_password_part2(&self, password: &str) -> bool {
+        let match1 = password.chars().nth(self.min - 1) == Some(self.letter);
+        let match2 = password.chars().nth(self.max - 1) == Some(self.letter);
+        (match1 || match2) && !(match1 && match2)
     }
 }
 
@@ -37,12 +43,20 @@ fn parse_input(file_name: impl AsRef<Path>) -> Vec<(PasswordPolicy, String)> {
         .collect()
 }
 
-fn count_valid_passwords(passwords: &[(PasswordPolicy, String)]) -> usize {
+fn count_valid_passwords_part1(passwords: &[(PasswordPolicy, String)]) -> usize {
     passwords
         .iter()
-        .filter(|(pol, pass)| pol.validate_password(&pass))
+        .filter(|(pol, pass)| pol.validate_password_part1(&pass))
         .count()
 }
+
+fn count_valid_passwords_part2(passwords: &[(PasswordPolicy, String)]) -> usize {
+    passwords
+        .iter()
+        .filter(|(pol, pass)| pol.validate_password_part2(&pass))
+        .count()
+}
+
 
 fn main() {
     if env::args().count() != 2 {
@@ -51,8 +65,10 @@ fn main() {
     }
 
     let passwords = parse_input(env::args().nth(1).unwrap());
-    let count = count_valid_passwords(&passwords);
-    println!("Result: {}", count);
+    let part1 = count_valid_passwords_part1(&passwords);
+    let part2 = count_valid_passwords_part2(&passwords);
+    println!("Result (Part 1) {}", part1);
+    println!("Result (Part 2) {}", part2);
 }
 
 #[cfg(test)]
@@ -62,12 +78,14 @@ mod tests {
     #[test]
     fn test_example_input() {
         let passwords = parse_input("example.txt");
-        assert_eq!(count_valid_passwords(&passwords), 2);
+        assert_eq!(count_valid_passwords_part1(&passwords), 2);
+        assert_eq!(count_valid_passwords_part2(&passwords), 1);
     }
 
     #[test]
     fn test_puzzle_input() {
         let passwords = parse_input("input.txt");
-        assert_eq!(count_valid_passwords(&passwords), 424);
+        assert_eq!(count_valid_passwords_part1(&passwords), 424);
+        assert_eq!(count_valid_passwords_part2(&passwords), 747);
     }
 }
