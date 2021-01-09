@@ -12,12 +12,12 @@ fn validate_passport(passport: &str, validators: &Validators) -> bool {
     let mut fields_validated = HashSet::new();
 
     for field in passport.split_whitespace() {
-        let parts: Vec<_> = field.splitn(2, ':').collect();
-        if parts.len() != 2 {
+        let mut parts = field.splitn(2, ':');
+        if parts.clone().count() != 2 {
             continue;
         }
 
-        let (key, value) = (parts[0], parts[1]);
+        let (key, value) = (parts.next().unwrap(), parts.next().unwrap());
 
         if let Some(validator) = validators.get(key) {
             if validator(value) {
@@ -88,10 +88,7 @@ fn validate_pid(value: &str) -> bool {
     value.chars().count() == 9 && value.chars().all(char::is_numeric)
 }
 
-fn valid_passports_count(file_name: impl AsRef<Path>) -> usize {
-    let content = fs::read_to_string(file_name).unwrap();
-    let passports = content.split("\n\n");
-
+fn count_valid_passports(file_name: impl AsRef<Path>) -> usize {
     let mut validators: Validators = HashMap::new();
     validators.insert("byr", validate_byr);
     validators.insert("iyr", validate_iyr);
@@ -101,7 +98,9 @@ fn valid_passports_count(file_name: impl AsRef<Path>) -> usize {
     validators.insert("ecl", validate_ecl);
     validators.insert("pid", validate_pid);
 
-    passports
+    fs::read_to_string(file_name)
+        .unwrap()
+        .split("\n\n")
         .filter(|p| validate_passport(p, &validators))
         .count()
 }
@@ -112,7 +111,7 @@ fn main() {
         process::exit(1);
     }
 
-    let count = valid_passports_count(env::args().nth(1).unwrap());
+    let count = count_valid_passports(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
 
@@ -122,11 +121,11 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(valid_passports_count("example.txt"), 2);
+        assert_eq!(count_valid_passports("example.txt"), 2);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(valid_passports_count("input.txt"), 137);
+        assert_eq!(count_valid_passports("input.txt"), 137);
     }
 }

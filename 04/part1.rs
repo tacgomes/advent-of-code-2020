@@ -20,10 +20,12 @@ fn validate_passport(passport: &str) -> bool {
     fields_found.len() == REQUIRED_FIELDS.len()
 }
 
-fn valid_passports_count(file_name: impl AsRef<Path>) -> usize {
-    let content = fs::read_to_string(file_name).unwrap();
-    let passports = content.split("\n\n");
-    passports.filter(|p| validate_passport(p)).count()
+fn count_valid_passports(file_name: impl AsRef<Path>) -> usize {
+    fs::read_to_string(file_name)
+        .unwrap()
+        .split("\n\n")
+        .filter(|p| validate_passport(p))
+        .count()
 }
 
 fn main() {
@@ -32,7 +34,7 @@ fn main() {
         process::exit(1);
     }
 
-    let count = valid_passports_count(env::args().nth(1).unwrap());
+    let count = count_valid_passports(env::args().nth(1).unwrap());
     println!("Result: {}", count);
 }
 
@@ -42,11 +44,11 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(valid_passports_count("example.txt"), 2);
+        assert_eq!(count_valid_passports("example.txt"), 2);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(valid_passports_count("input.txt"), 202);
+        assert_eq!(count_valid_passports("input.txt"), 202);
     }
 }
