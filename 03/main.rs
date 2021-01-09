@@ -41,22 +41,24 @@ impl Map {
         self.trees.insert(point);
     }
 
-    fn navigate_toboggan(&self) -> usize {
-        let movements = [
+    fn count_trees_part1(&self) -> usize {
+        self.navigate_toboggan(&MapPosition::new(1, 3))
+    }
+
+    fn count_trees_part2(&self) -> usize {
+        [
             MapPosition::new(1, 1),
             MapPosition::new(1, 3),
             MapPosition::new(1, 5),
             MapPosition::new(1, 7),
             MapPosition::new(2, 1),
-        ];
-
-        movements
-            .iter()
-            .map(|m| self.navigate_toboggan_with_movement(m))
-            .product()
+        ]
+        .iter()
+        .map(|m| self.navigate_toboggan(m))
+        .product()
     }
 
-    fn navigate_toboggan_with_movement(&self, movement: &MapPosition) -> usize {
+    fn navigate_toboggan(&self, movement: &MapPosition) -> usize {
         let mut num_trees = 0;
         let mut current_pos = MapPosition::new(0, 0);
 
@@ -73,7 +75,7 @@ impl Map {
     }
 }
 
-fn encountered_trees_count(file_name: impl AsRef<Path>) -> usize {
+fn parse_input(file_name: impl AsRef<Path>) -> Map {
     let file = File::open(file_name).unwrap();
     let lines = BufReader::new(file).lines();
     let lines: Vec<_> = lines.map(|x| x.unwrap()).collect();
@@ -87,7 +89,7 @@ fn encountered_trees_count(file_name: impl AsRef<Path>) -> usize {
             .for_each(|(col, _)| map.add_tree(MapPosition::new(row, col)))
     });
 
-    map.navigate_toboggan()
+    map
 }
 
 fn main() {
@@ -96,8 +98,11 @@ fn main() {
         process::exit(1);
     }
 
-    let count = encountered_trees_count(env::args().nth(1).unwrap());
-    println!("Result: {}", count);
+    let map = parse_input(env::args().nth(1).unwrap());
+    let part1 = map.count_trees_part1();
+    let part2 = map.count_trees_part2();
+    println!("Result (Part 1): {}", part1);
+    println!("Result (Part 2): {}", part2);
 }
 
 #[cfg(test)]
@@ -106,11 +111,15 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(encountered_trees_count("example.txt"), 336);
+        let map = parse_input("example.txt");
+        assert_eq!(map.count_trees_part1(), 7);
+        assert_eq!(map.count_trees_part2(), 336);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(encountered_trees_count("input.txt"), 2655892800);
+        let map = parse_input("input.txt");
+        assert_eq!(map.count_trees_part1(), 207);
+        assert_eq!(map.count_trees_part2(), 2655892800);
     }
 }
