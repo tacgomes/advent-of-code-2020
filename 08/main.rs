@@ -1,6 +1,5 @@
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
@@ -26,29 +25,7 @@ struct BootCode {
 }
 
 impl BootCode {
-    fn from_file(file_name: impl AsRef<Path>) -> Self {
-        let file = File::open(file_name).unwrap();
-        let lines = BufReader::new(file).lines();
-
-        let mut instructions = vec![];
-
-        for line in lines {
-            let line = line.unwrap();
-            let tokens: Vec<_> = line.split_whitespace().collect();
-            let (op, val) = (tokens[0], tokens[1].parse::<i32>().unwrap());
-            let ins = match op {
-                "nop" => Instruction::Nop(val),
-                "acc" => Instruction::Acc(val),
-                "jmp" => Instruction::Jmp(val),
-                _ => panic!("Invalid operation: {}", op),
-            };
-            instructions.push(ins);
-        }
-
-        BootCode { instructions }
-    }
-
-    fn from_instructions(instructions: Vec<Instruction>) -> Self {
+    fn new(instructions: Vec<Instruction>) -> Self {
         BootCode { instructions }
     }
 
@@ -58,9 +35,10 @@ impl BootCode {
         let mut executed = vec![false; self.instructions.len()];
 
         while ip != self.instructions.len() {
-            match executed[ip] {
-                false => executed[ip] = true,
-                true => return BootCodeResult::Cyclic(acc),
+            if executed[ip] {
+                return BootCodeResult::Cyclic(acc);
+            } else {
+                executed[ip] = true;
             }
 
             match self.instructions[ip] {
@@ -86,7 +64,7 @@ impl BootCode {
                 Instruction::Nop(val) => {
                     let mut new_instructions = self.instructions.clone();
                     new_instructions[ip] = Instruction::Jmp(*val);
-                    let r = BootCode::from_instructions(new_instructions).run();
+                    let r = BootCode::new(new_instructions).run();
                     if let BootCodeResult::Terminated(_) = r {
                         return r;
                     }
@@ -94,7 +72,7 @@ impl BootCode {
                 Instruction::Jmp(val) => {
                     let mut new_instructions = self.instructions.clone();
                     new_instructions[ip] = Instruction::Nop(*val);
-                    let r = BootCode::from_instructions(new_instructions).run();
+                    let r = BootCode::new(new_instructions).run();
                     if let BootCodeResult::Terminated(_) = r {
                         return r;
                     }
@@ -102,8 +80,29 @@ impl BootCode {
                 Instruction::Acc(_) => (),
             }
         }
+
         self.run()
     }
+}
+
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<Instruction> {
+    fs::read_to_string(&file_name)
+        .unwrap()
+        .lines()
+        .map(|x| {
+            let mut parts = x.split_whitespace();
+            let (op, val) = (
+                parts.next().unwrap(),
+                parts.next().unwrap().parse::<i32>().unwrap(),
+            );
+            match op {
+                "nop" => Instruction::Nop(val),
+                "acc" => Instruction::Acc(val),
+                "jmp" => Instruction::Jmp(val),
+                _ => panic!("Invalid operation: {}", op),
+            }
+        })
+        .collect()
 }
 
 fn main() {
@@ -112,11 +111,12 @@ fn main() {
         process::exit(1);
     }
 
-    let boot_code = BootCode::from_file(env::args().nth(1).unwrap());
-    let acc = boot_code.run();
-    let run_with_fix = boot_code.run_with_fix();
-    println!("Result (Part 1): {:?}", acc);
-    println!("Result (Part 2): {:?}", run_with_fix);
+    let instructions = parse_input(env::args().nth(1).unwrap());
+    let boot_code = BootCode::new(instructions);
+    let part1 = boot_code.run();
+    let part2 = boot_code.run_with_fix();
+    println!("Result (Part 1): {:?}", part1);
+    println!("Result (Part 2): {:?}", part2);
 }
 
 #[cfg(test)]
@@ -125,14 +125,16 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        let boot_code = BootCode::from_file("example.txt");
+        let instructions = parse_input("example.txt");
+        let boot_code = BootCode::new(instructions);
         assert_eq!(boot_code.run(), BootCodeResult::Cyclic(5));
         assert_eq!(boot_code.run_with_fix(), BootCodeResult::Terminated(8));
     }
 
     #[test]
     fn test_puzzle_input() {
-        let boot_code = BootCode::from_file("input.txt");
+        let instructions = parse_input("input.txt");
+        let boot_code = BootCode::new(instructions);
         assert_eq!(boot_code.run(), BootCodeResult::Cyclic(1810));
         assert_eq!(boot_code.run_with_fix(), BootCodeResult::Terminated(969));
     }
