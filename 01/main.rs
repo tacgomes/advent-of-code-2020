@@ -6,13 +6,18 @@ use std::process;
 
 const TARGET_SUM: i32 = 2020;
 
-fn solve_part1(file_name: impl AsRef<Path>) -> Option<i32> {
-    let content = fs::read_to_string(file_name).unwrap();
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<i32> {
+    fs::read_to_string(file_name)
+        .unwrap()
+        .lines()
+        .map(|x| x.parse::<i32>().unwrap())
+        .collect()
+}
 
+fn solve_part1(values: &[i32]) -> Option<i32> {
     let mut set = HashSet::new();
 
-    for line in content.lines() {
-        let n = line.parse::<i32>().unwrap();
+    for n in values {
         let diff = TARGET_SUM - n;
         if set.contains(&diff) {
             return Some(n * diff);
@@ -23,28 +28,17 @@ fn solve_part1(file_name: impl AsRef<Path>) -> Option<i32> {
     None
 }
 
-fn solve_part2(file_name: impl AsRef<Path>) -> Option<i32> {
-    let content = fs::read_to_string(&file_name).unwrap();
-
-    let mut vec = vec![];
+fn solve_part2(values: &[i32]) -> Option<i32> {
     let mut set = HashSet::new();
 
-    for line in content.lines() {
-        let n = line.parse::<i32>().unwrap();
-        vec.push(n);
-        set.insert(n);
-    }
-
-    // Assumes non-repeated elements
-    assert_eq!(set.len(), vec.len());
-
-    for (a_i, a) in vec[..vec.len() - 2].iter().enumerate() {
-        for b in vec[a_i + 1..].iter() {
-            let diff = TARGET_SUM - a - b;
-            if set.contains(&diff) {
-                return Some(a * b * diff);
+    for (a_i, a) in values[..values.len() - 2].iter().enumerate() {
+        for b in values[a_i + 1..].iter() {
+            let c = TARGET_SUM - a - b;
+            if set.contains(&c) {
+                return Some(a * b * c);
             }
         }
+        set.insert(a);
     }
 
     None
@@ -56,8 +50,9 @@ fn main() {
         process::exit(1);
     }
 
-    let part1 = solve_part1(env::args().nth(1).unwrap());
-    let part2 = solve_part2(env::args().nth(1).unwrap());
+    let values = parse_input(env::args().nth(1).unwrap());
+    let part1 = solve_part1(&values);
+    let part2 = solve_part2(&values);
     println!("Result (Part 1):{:?}", part1);
     println!("Result (Part 2):{:?}", part2);
 }
@@ -68,13 +63,15 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(solve_part1("example.txt"), Some(514579));
-        assert_eq!(solve_part2("example.txt"), Some(241861950));
+        let values = parse_input("example.txt");
+        assert_eq!(solve_part1(&values), Some(514579));
+        assert_eq!(solve_part2(&values), Some(241861950));
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(solve_part1("input.txt"), Some(918339));
-        assert_eq!(solve_part2("input.txt"), Some(23869440));
+        let values = parse_input("input.txt");
+        assert_eq!(solve_part1(&values), Some(918339));
+        assert_eq!(solve_part2(&values), Some(23869440));
     }
 }
