@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -33,45 +32,20 @@ fn count_differences(jolts: &[usize]) -> Option<usize> {
 }
 
 fn count_arrangements(jolts: &[usize]) -> usize {
-    let mut cache = HashMap::new();
-    // NB: while this solution works and it is not inefficient due the
-    // use of dynamic programming, there are simpler ways of calculating
-    // the number of arrangements. In the page referred by the following
-    // link, the solution posted by user `Zealousideal_Bit_601` is
-    // simple and well explained:
-    // https://www.reddit.com/r/adventofcode/comments/ka8z8x/2020_day_10_solutions/
-    //
-    // TODO refactor and simplify this function
-    (0..3)
-        .map(|i| count_arrangements_util(0, i, &jolts, &mut cache))
-        .sum()
-}
+    let mut counts = vec![0; *jolts.last().unwrap() + 1];
+    counts[0] = 1;
 
-fn count_arrangements_util(
-    jolt: usize,
-    idx: usize,
-    jolts: &[usize],
-    mut cache: &mut HashMap<usize, usize>,
-) -> usize {
-    if idx >= jolts.len() || jolts[idx] - jolt > 3 {
-        return 0;
+    // Algorithm:
+    //   Q: How many arrangements are possible for jolt `j`?
+    //   A: As many as the sum of the arrangements for jolts `j - 1`,
+    //   `j - 2` and `j - 3`.
+    for &jolt in [0].iter().chain(jolts.iter().take(jolts.len() - 1)) {
+        counts[jolt + 1] += counts[jolt];
+        counts[jolt + 2] += counts[jolt];
+        counts[jolt + 3] += counts[jolt];
     }
 
-    if idx == jolts.len() - 1 {
-        return 1;
-    }
-
-    if let Some(count) = cache.get(&jolts[idx]) {
-        return *count;
-    }
-
-    let count = (1..=3)
-        .map(|i| count_arrangements_util(jolts[idx], idx + i, &jolts, &mut cache))
-        .sum();
-
-    cache.insert(jolts[idx], count);
-
-    count
+    *counts.last().unwrap()
 }
 
 fn main() {
