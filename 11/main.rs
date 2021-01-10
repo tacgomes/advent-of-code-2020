@@ -1,21 +1,20 @@
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
 #[derive(Clone, Copy)]
-struct Movement(isize, isize);
+struct Move(isize, isize);
 
-const MOVEMENTS: [Movement; 8] = [
-    Movement(-1, -1),
-    Movement(-1, 0),
-    Movement(-1, 1),
-    Movement(0, 1),
-    Movement(1, 1),
-    Movement(1, 0),
-    Movement(1, -1),
-    Movement(0, -1),
+const MOVES: [Move; 8] = [
+    Move(-1, -1),
+    Move(-1, 0),
+    Move(-1, 1),
+    Move(0, 1),
+    Move(1, 1),
+    Move(1, 0),
+    Move(1, -1),
+    Move(0, -1),
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -27,40 +26,25 @@ enum SeatStatus {
 
 struct SeatingSystem {
     seats: Vec<Vec<SeatStatus>>,
-    swap_num: u32,
+    nrows: isize,
+    ncols: isize,
+    swap_threshold: u32,
     recurse: bool,
 }
 
 impl SeatingSystem {
-    fn from_file(file_name: impl AsRef<Path>, swap_num: u32, recurse: bool) -> Self {
-        let file = File::open(file_name).unwrap();
-        let lines = BufReader::new(file).lines();
-        let lines: Vec<_> = lines.map(|x| x.unwrap()).collect();
-
-        let mut seats = vec![];
-
-        for line in lines.iter() {
-            let row = line
-                .chars()
-                .map(|ch| match ch {
-                    'L' => SeatStatus::Empty,
-                    '#' => SeatStatus::Occupied,
-                    '.' => SeatStatus::Floor,
-                    _ => unreachable!(),
-                })
-                .collect();
-            seats.push(row);
-        }
-
+    fn new(seats: Vec<Vec<SeatStatus>>, swap_threshold: u32, recurse: bool) -> Self {
         SeatingSystem {
+            nrows: seats.len() as isize,
+            ncols: seats[0].len() as isize,
             seats,
-            swap_num,
+            swap_threshold,
             recurse,
         }
     }
 
     fn count_occupied(&mut self) -> usize {
-        while self.run_one_iteration() {}
+        while self.iterate() {}
         self.seats
             .iter()
             .flat_map(|x| x.iter())
@@ -68,22 +52,24 @@ impl SeatingSystem {
             .count()
     }
 
-    fn run_one_iteration(&mut self) -> bool {
+    fn iterate(&mut self) -> bool {
         let mut copy = self.seats.clone();
         let mut changed = false;
-        for (r, row) in self.seats.iter().enumerate() {
-            for (c, _cols) in row.iter().enumerate() {
-                let occupied_seats = self.scan(r, c);
-                match copy[r][c] {
+
+        for (r, row) in copy.iter_mut().enumerate() {
+            for (c, seat_status) in row.iter_mut().enumerate() {
+                match seat_status {
                     SeatStatus::Empty => {
-                        if occupied_seats == 0 {
-                            copy[r][c] = SeatStatus::Occupied;
+                        let num_occupied = self.count_occupied_neighbors(r, c);
+                        if num_occupied == 0 {
+                            *seat_status = SeatStatus::Occupied;
                             changed = true;
                         }
                     }
                     SeatStatus::Occupied => {
-                        if occupied_seats >= self.swap_num {
-                            copy[r][c] = SeatStatus::Empty;
+                        let num_occupied = self.count_occupied_neighbors(r, c);
+                        if num_occupied >= self.swap_threshold {
+                            *seat_status = SeatStatus::Empty;
                             changed = true;
                         }
                     }
@@ -91,21 +77,21 @@ impl SeatingSystem {
                 }
             }
         }
+
         self.seats = copy;
         changed
     }
 
-    fn scan(&self, row: usize, col: usize) -> u32 {
-        MOVEMENTS
+    fn count_occupied_neighbors(&self, row: usize, col: usize) -> u32 {
+        MOVES
             .iter()
-            .map(|&m| self.scan_with_move(row as isize, col as isize, m))
+            .map(|&x| self.check_seat(row as isize, col as isize, x))
             .sum()
     }
 
-    fn scan_with_move(&self, mut row: isize, mut col: isize, movement: Movement) -> u32 {
-        row += movement.0;
-        col += movement.1;
-        if row < 0 || col < 0 || row == self.num_rows() || col == self.num_cols() {
+    fn check_seat(&self, row: isize, col: isize, mov: Move) -> u32 {
+        let (row, col) = (row + mov.0, col + mov.1);
+        if row < 0 || col < 0 || row == self.nrows || col == self.ncols {
             return 0;
         }
 
@@ -113,19 +99,28 @@ impl SeatingSystem {
             SeatStatus::Empty => 0,
             SeatStatus::Occupied => 1,
             SeatStatus::Floor => match self.recurse {
+                true => self.check_seat(row, col, mov),
                 false => 0,
-                true => self.scan_with_move(row, col, movement),
             },
         }
     }
+}
 
-    fn num_rows(&self) -> isize {
-        self.seats.len() as isize
-    }
-
-    fn num_cols(&self) -> isize {
-        self.seats[0].len() as isize
-    }
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<Vec<SeatStatus>> {
+    fs::read_to_string(&file_name)
+        .unwrap()
+        .lines()
+        .map(|x| {
+            x.chars()
+                .map(|ch| match ch {
+                    'L' => SeatStatus::Empty,
+                    '#' => SeatStatus::Occupied,
+                    '.' => SeatStatus::Floor,
+                    _ => unreachable!(),
+                })
+                .collect()
+        })
+        .collect()
 }
 
 fn main() {
@@ -134,11 +129,13 @@ fn main() {
         process::exit(1);
     }
 
-    let mut seating_system = SeatingSystem::from_file(env::args().nth(1).unwrap(), 4, false);
+    let seats = parse_input(env::args().nth(1).unwrap());
+
+    let mut seating_system = SeatingSystem::new(seats.clone(), 4, false);
     let num_occupied_part1 = seating_system.count_occupied();
     println!("Result (Part 1): {:?}", num_occupied_part1);
 
-    let mut seating_system = SeatingSystem::from_file(env::args().nth(1).unwrap(), 5, true);
+    let mut seating_system = SeatingSystem::new(seats, 5, true);
     let num_occupied_part2 = seating_system.count_occupied();
     println!("Result (Part 2): {:?}", num_occupied_part2);
 }
@@ -149,19 +146,21 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        let mut seating_system = SeatingSystem::from_file("example.txt", 4, false);
+        let seats = parse_input("example.txt");
+        let mut seating_system = SeatingSystem::new(seats.clone(), 4, false);
         assert_eq!(seating_system.count_occupied(), 37);
 
-        let mut seating_system = SeatingSystem::from_file("example.txt", 5, true);
+        let mut seating_system = SeatingSystem::new(seats, 5, true);
         assert_eq!(seating_system.count_occupied(), 26);
     }
 
     #[test]
     fn test_puzzle_input() {
-        let mut seating_system = SeatingSystem::from_file("input.txt", 4, false);
+        let seats = parse_input("input.txt");
+        let mut seating_system = SeatingSystem::new(seats.clone(), 4, false);
         assert_eq!(seating_system.count_occupied(), 2468);
 
-        let mut seating_system = SeatingSystem::from_file("input.txt", 5, true);
+        let mut seating_system = SeatingSystem::new(seats, 5, true);
         assert_eq!(seating_system.count_occupied(), 2214);
     }
 }
