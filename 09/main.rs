@@ -1,64 +1,48 @@
 use std::collections::HashSet;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
-fn abs_diff(x: u32, y: u32) -> u32 {
-    if x > y {
-        x - y
-    } else {
-        y - x
-    }
-}
+fn find_encoding_error(numbers: &[usize], preamble_length: usize) -> Option<usize> {
+    let absdiff = |a: usize, b: usize| if a > b { a - b } else { b - a };
+    let mut preamble = HashSet::new();
 
-fn find_encoding_error(
-    file_name: impl AsRef<Path>,
-    preamble_size: usize,
-) -> (Option<u32>, Vec<u32>) {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
-
-    let mut numbers = vec![];
-    let mut preamble: HashSet<u32> = HashSet::new();
-
-    for (i, line) in lines.enumerate() {
-        let num = line.unwrap().parse::<u32>().unwrap();
-
-        if preamble.len() >= preamble_size {
+    for (i, &num) in numbers.iter().enumerate() {
+        if preamble.len() >= preamble_length {
             if !preamble
                 .iter()
-                .map(|x| abs_diff(num, *x))
+                .map(|x| absdiff(num, *x))
                 .any(|x| x != num && preamble.contains(&x))
             {
-                return (Some(num), numbers);
+                return Some(num);
             }
-            preamble.remove(&numbers[i - preamble_size]);
+            preamble.remove(&numbers[i - preamble_length]);
         }
-
-        numbers.push(num);
         preamble.insert(num);
     }
 
-    (None, numbers)
+    None
 }
 
-fn find_encryption_weakness(error_num: Option<u32>, numbers: &[u32]) -> Option<u32> {
-    let error_num = error_num?;
-
-    for sequence_size in 2..numbers.len() {
-        for index in 0..numbers.len() - sequence_size {
-            let slice = &numbers[index..index + sequence_size];
-            if slice.iter().sum::<u32>() == error_num {
-                let min = slice.iter().min().unwrap();
-                let max = slice.iter().max().unwrap();
-                return Some(min + max);
+fn find_encryption_weakness(numbers: &[usize], error: usize) -> Option<usize> {
+    (2..numbers.len())
+        .flat_map(|x| numbers.windows(x))
+        .find_map(|w| {
+            if error == w.iter().sum() {
+                Some(w.iter().min().unwrap() + w.iter().max().unwrap())
+            } else {
+                None
             }
-        }
-    }
+        })
+}
 
-    None
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<usize> {
+    fs::read_to_string(&file_name)
+        .unwrap()
+        .lines()
+        .map(|x| x.parse::<usize>().unwrap())
+        .collect()
 }
 
 fn main() {
@@ -67,12 +51,11 @@ fn main() {
         process::exit(1);
     }
 
-    let file_name = env::args().nth(1).unwrap();
-    let preamble_size = env::args().nth(2).unwrap().parse::<usize>().unwrap();
-
-    let (error_num, numbers) = find_encoding_error(file_name, preamble_size);
-    let encryption_weakness = find_encryption_weakness(error_num, &numbers);
-    println!("Result (Part 1): {:?}", error_num);
+    let numbers = parse_input(env::args().nth(1).unwrap());
+    let preamble_length = env::args().nth(2).unwrap().parse::<usize>().unwrap();
+    let error = find_encoding_error(&numbers, preamble_length).unwrap();
+    let encryption_weakness = find_encryption_weakness(&numbers, error);
+    println!("Result (Part 1): {:?}", error);
     println!("Result (Part 2): {:?}", encryption_weakness);
 }
 
@@ -82,17 +65,19 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        let (error_num, numbers) = find_encoding_error("example.txt", 5);
-        let encryption_weakness = find_encryption_weakness(error_num, &numbers);
-        assert_eq!(error_num, Some(127));
+        let numbers = parse_input("example.txt");
+        let error = find_encoding_error(&numbers, 5);
+        let encryption_weakness = find_encryption_weakness(&numbers, error.unwrap());
+        assert_eq!(error, Some(127));
         assert_eq!(encryption_weakness, Some(62));
     }
 
     #[test]
     fn test_puzzle_input() {
-        let (error_num, numbers) = find_encoding_error("input.txt", 25);
-        let encryption_weakness = find_encryption_weakness(error_num, &numbers);
-        assert_eq!(error_num, Some(57195069));
+        let numbers = parse_input("input.txt");
+        let error = find_encoding_error(&numbers, 25);
+        let encryption_weakness = find_encryption_weakness(&numbers, error.unwrap());
+        assert_eq!(error, Some(57195069));
         assert_eq!(encryption_weakness, Some(7409241));
     }
 }
