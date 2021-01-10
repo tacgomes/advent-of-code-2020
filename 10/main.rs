@@ -1,38 +1,38 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
-fn read_jolts(file_name: impl AsRef<Path>) -> Vec<u32> {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
-    let mut jolts: Vec<_> = lines.map(|x| x.unwrap().parse().unwrap()).collect();
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<usize> {
+    let mut jolts: Vec<_> = fs::read_to_string(&file_name)
+        .unwrap()
+        .lines()
+        .map(|x| x.parse().unwrap())
+        .collect();
+
     jolts.sort_unstable();
     jolts.push(jolts.last().unwrap() + 3);
     jolts
 }
 
-fn find_jolt_diff(file_name: impl AsRef<Path>) -> Option<u32> {
-    let jolts = read_jolts(file_name);
+fn count_differences(jolts: &[usize]) -> Option<usize> {
     let (mut prev_jolt, mut diff1, mut diff3) = (0, 0, 0);
 
-    for j in jolts {
-        match j - prev_jolt {
+    for &jolt in jolts {
+        match jolt - prev_jolt {
             1 => diff1 += 1,
             3 => diff3 += 1,
             0 | 2 => continue,
             _ => return None,
         }
-        prev_jolt = j;
+        prev_jolt = jolt;
     }
 
     Some(diff1 * diff3)
 }
 
-fn count_arrangements(file_name: impl AsRef<Path>) -> u64 {
-    let jolts = read_jolts(file_name);
+fn count_arrangements(jolts: &[usize]) -> usize {
     let mut cache = HashMap::new();
     // NB: while this solution works and it is not inefficient due the
     // use of dynamic programming, there are simpler ways of calculating
@@ -48,11 +48,11 @@ fn count_arrangements(file_name: impl AsRef<Path>) -> u64 {
 }
 
 fn count_arrangements_util(
-    jolt: u32,
+    jolt: usize,
     idx: usize,
-    jolts: &[u32],
-    mut cache: &mut HashMap<u32, u64>,
-) -> u64 {
+    jolts: &[usize],
+    mut cache: &mut HashMap<usize, usize>,
+) -> usize {
     if idx >= jolts.len() || jolts[idx] - jolt > 3 {
         return 0;
     }
@@ -80,10 +80,11 @@ fn main() {
         process::exit(1);
     }
 
-    let jolt_diff = find_jolt_diff(env::args().nth(1).unwrap());
-    let arrangements_count = count_arrangements(env::args().nth(1).unwrap());
-    println!("Result (Part 1): {:?}", jolt_diff);
-    println!("Result (Part 2): {:?}", arrangements_count);
+    let jolts = parse_input(env::args().nth(1).unwrap());
+    let part1 = count_differences(&jolts);
+    let part2 = count_arrangements(&jolts);
+    println!("Result (Part 1): {:?}", part1);
+    println!("Result (Part 2): {:?}", part2);
 }
 
 #[cfg(test)]
@@ -92,19 +93,22 @@ mod tests {
 
     #[test]
     fn test_example_input_1() {
-        assert_eq!(find_jolt_diff("example1.txt"), Some(35));
-        assert_eq!(count_arrangements("example1.txt"), 8);
+        let jolts = parse_input("example1.txt");
+        assert_eq!(count_differences(&jolts), Some(35));
+        assert_eq!(count_arrangements(&jolts), 8);
     }
 
     #[test]
     fn test_example_input_2() {
-        assert_eq!(find_jolt_diff("example2.txt"), Some(220));
-        assert_eq!(count_arrangements("example2.txt"), 19208);
+        let jolts = parse_input("example2.txt");
+        assert_eq!(count_differences(&jolts), Some(220));
+        assert_eq!(count_arrangements(&jolts), 19208);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(find_jolt_diff("input.txt"), Some(1876));
-        assert_eq!(count_arrangements("input.txt"), 14173478093824);
+        let jolts = parse_input("input.txt");
+        assert_eq!(count_differences(&jolts), Some(1876));
+        assert_eq!(count_arrangements(&jolts), 14173478093824);
     }
 }
