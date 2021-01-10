@@ -1,6 +1,5 @@
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::mem;
 use std::ops::Neg;
 use std::path::Path;
@@ -31,24 +30,24 @@ enum Direction {
 }
 
 impl Direction {
-    fn rotate_clockwise(&mut self, rotation: &Rotation) {
+    fn rotate_clockwise(&mut self, rot: &Rotation) {
         *self = match self {
-            Self::North => match rotation {
+            Self::North => match rot {
                 Rotation::D090 => Self::East,
                 Rotation::D180 => Self::South,
                 Rotation::D270 => Self::West,
             },
-            Self::East => match rotation {
+            Self::East => match rot {
                 Rotation::D090 => Self::South,
                 Rotation::D180 => Self::West,
                 Rotation::D270 => Self::North,
             },
-            Self::South => match rotation {
+            Self::South => match rot {
                 Rotation::D090 => Self::West,
                 Rotation::D180 => Self::North,
                 Rotation::D270 => Self::East,
             },
-            Self::West => match rotation {
+            Self::West => match rot {
                 Rotation::D090 => Self::North,
                 Rotation::D180 => Self::East,
                 Rotation::D270 => Self::South,
@@ -56,24 +55,24 @@ impl Direction {
         }
     }
 
-    fn rotate_anticlockwise(&mut self, rotation: &Rotation) {
+    fn rotate_anticlockwise(&mut self, rot: &Rotation) {
         *self = match self {
-            Self::North => match rotation {
+            Self::North => match rot {
                 Rotation::D090 => Self::West,
                 Rotation::D180 => Self::South,
                 Rotation::D270 => Self::East,
             },
-            Self::East => match rotation {
+            Self::East => match rot {
                 Rotation::D090 => Self::North,
                 Rotation::D180 => Self::West,
                 Rotation::D270 => Self::South,
             },
-            Self::South => match rotation {
+            Self::South => match rot {
                 Rotation::D090 => Self::East,
                 Rotation::D180 => Self::North,
                 Rotation::D270 => Self::West,
             },
-            Self::West => match rotation {
+            Self::West => match rot {
                 Rotation::D090 => Self::South,
                 Rotation::D180 => Self::East,
                 Rotation::D270 => Self::North,
@@ -82,7 +81,7 @@ impl Direction {
     }
 }
 
-enum Movement {
+enum Move {
     North(isize),
     East(isize),
     South(isize),
@@ -93,49 +92,27 @@ enum Movement {
 }
 
 struct ShipNavigation {
-    movements: Vec<Movement>,
+    moves: Vec<Move>,
 }
 
 impl ShipNavigation {
-    fn from_file(file_name: impl AsRef<Path>) -> Self {
-        let file = File::open(file_name).unwrap();
-        let lines = BufReader::new(file).lines();
-
-        let mut movements = vec![];
-
-        for line in lines {
-            let line = line.unwrap();
-            let ch = line.chars().next().unwrap();
-            let num = line[1..].parse::<isize>().unwrap();
-            let mov = match ch as char {
-                'N' => Movement::North(num),
-                'E' => Movement::East(num),
-                'S' => Movement::South(num),
-                'W' => Movement::West(num),
-                'R' => Movement::Right(Rotation::from_degrees(num)),
-                'L' => Movement::Left(Rotation::from_degrees(num)),
-                'F' => Movement::Forward(num),
-                _ => unreachable!(),
-            };
-            movements.push(mov);
-        }
-
-        ShipNavigation { movements }
+    fn new(moves: Vec<Move>) -> Self {
+        ShipNavigation { moves }
     }
 
     fn navigate_part1(&self) -> usize {
-        let (mut x, mut y): (isize, isize) = (0, 0);
+        let (mut x, mut y) = (0, 0);
         let mut direction = Direction::East;
 
-        for mov in &self.movements {
+        for mov in &self.moves {
             match mov {
-                Movement::North(units) => y += units,
-                Movement::East(units) => x += units,
-                Movement::South(units) => y -= units,
-                Movement::West(units) => x -= units,
-                Movement::Right(rotation) => direction.rotate_clockwise(&rotation),
-                Movement::Left(rotation) => direction.rotate_anticlockwise(&rotation),
-                Movement::Forward(units) => match direction {
+                Move::North(units) => y += units,
+                Move::East(units) => x += units,
+                Move::South(units) => y -= units,
+                Move::West(units) => x -= units,
+                Move::Right(rot) => direction.rotate_clockwise(&rot),
+                Move::Left(rot) => direction.rotate_anticlockwise(&rot),
+                Move::Forward(units) => match direction {
                     Direction::North => y += units,
                     Direction::East => x += units,
                     Direction::South => y -= units,
@@ -151,19 +128,19 @@ impl ShipNavigation {
         let (mut ship_x, mut ship_y): (isize, isize) = (0, 0);
         let (mut wp_x, mut wp_y): (isize, isize) = (10, 1);
 
-        for mov in &self.movements {
+        for mov in &self.moves {
             match mov {
-                Movement::North(units) => wp_y += units,
-                Movement::East(units) => wp_x += units,
-                Movement::South(units) => wp_y -= units,
-                Movement::West(units) => wp_x -= units,
-                Movement::Right(rotation) => {
-                    Self::rotate_coord_clockwise(&mut wp_x, &mut wp_y, rotation)
+                Move::North(units) => wp_y += units,
+                Move::East(units) => wp_x += units,
+                Move::South(units) => wp_y -= units,
+                Move::West(units) => wp_x -= units,
+                Move::Right(rot) => {
+                    Self::rotate_coord_clockwise(&mut wp_x, &mut wp_y, rot)
                 }
-                Movement::Left(rotation) => {
-                    Self::rotate_coord_anticlockwise(&mut wp_x, &mut wp_y, rotation)
+                Move::Left(rot) => {
+                    Self::rotate_coord_anticlockwise(&mut wp_x, &mut wp_y, rot)
                 }
-                Movement::Forward(units) => {
+                Move::Forward(units) => {
                     ship_x += wp_x * units;
                     ship_y += wp_y * units;
                 }
@@ -173,8 +150,8 @@ impl ShipNavigation {
         (ship_x.abs() + ship_y.abs()) as usize
     }
 
-    fn rotate_coord_clockwise<'a>(x: &'a mut isize, y: &'a mut isize, rotation: &Rotation) {
-        match rotation {
+    fn rotate_coord_clockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
+        match rot {
             Rotation::D090 => {
                 mem::swap(&mut *x, &mut *y);
                 *y = y.neg();
@@ -190,8 +167,8 @@ impl ShipNavigation {
         }
     }
 
-    fn rotate_coord_anticlockwise<'a>(x: &'a mut isize, y: &'a mut isize, rotation: &Rotation) {
-        match rotation {
+    fn rotate_coord_anticlockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
+        match rot {
             Rotation::D090 => {
                 mem::swap(&mut *x, &mut *y);
                 *x = x.neg();
@@ -208,13 +185,34 @@ impl ShipNavigation {
     }
 }
 
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<Move> {
+    fs::read_to_string(&file_name)
+        .unwrap()
+        .lines()
+        .map(|x| {
+            let num = x[1..].parse::<isize>().unwrap();
+            match x.chars().next().unwrap() {
+                'N' => Move::North(num),
+                'E' => Move::East(num),
+                'S' => Move::South(num),
+                'W' => Move::West(num),
+                'R' => Move::Right(Rotation::from_degrees(num)),
+                'L' => Move::Left(Rotation::from_degrees(num)),
+                'F' => Move::Forward(num),
+                _ => unreachable!(),
+            }
+        })
+        .collect()
+}
+
 fn main() {
     if env::args().count() != 2 {
         eprintln!("USAGE: {} FILE", env::args().next().unwrap());
         process::exit(1);
     }
 
-    let ship_navigation = ShipNavigation::from_file(env::args().nth(1).unwrap());
+    let moves = parse_input(env::args().nth(1).unwrap());
+    let ship_navigation = ShipNavigation::new(moves);
     let distance_part1 = ship_navigation.navigate_part1();
     let distance_part2 = ship_navigation.navigate_part2();
     println!("Result (Part 1): {:?}", distance_part1);
@@ -227,14 +225,16 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        let ship_navigation = ShipNavigation::from_file("example.txt");
+        let moves = parse_input("example.txt");
+        let ship_navigation = ShipNavigation::new(moves);
         assert_eq!(ship_navigation.navigate_part1(), 25);
         assert_eq!(ship_navigation.navigate_part2(), 286);
     }
 
     #[test]
     fn test_puzzle_input() {
-        let ship_navigation = ShipNavigation::from_file("input.txt");
+        let moves = parse_input("input.txt");
+        let ship_navigation = ShipNavigation::new(moves);
         assert_eq!(ship_navigation.navigate_part1(), 1319);
         assert_eq!(ship_navigation.navigate_part2(), 62434);
     }
