@@ -4,13 +4,13 @@ use std::path::Path;
 use std::process;
 
 fn solve_part1(timestamp: usize, schedule: &[(usize, usize)]) -> usize {
-    let mut timestamps = schedule
+    let mut times = schedule
         .iter()
-        .map(|(x, _)| (x, (x - (timestamp % x) % x) + timestamp))
+        .map(|(x, _)| (x, x - timestamp % x))
         .collect::<Vec<_>>();
 
-    timestamps.sort_by_key(|&(_, ts)| ts);
-    (timestamps[0].1 - timestamp) * timestamps[0].0)
+    times.sort_by_key(|(_, ts)| *ts);
+    times[0].1 * times[0].0
 }
 
 fn solve_part2(schedule: &[(usize, usize)]) -> usize {
