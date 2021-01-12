@@ -1,80 +1,64 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::fs;
 use std::path::Path;
 use std::process;
 
-fn calculate_part1(file_name: impl AsRef<Path>) -> usize {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
-
-    let mut memory = HashMap::new();
-    let mut and_bitmask = 0;
-    let mut or_bitmask = 0;
-
-    for line in lines {
-        let line = line.unwrap();
-        let parts: Vec<_> = line.split(" = ").collect();
-        let (key, value) = (parts[0], parts[1]);
-
-        if key == "mask" {
-            and_bitmask = usize::from_str_radix(&value.replace('X', "1"), 2).unwrap();
-            or_bitmask = usize::from_str_radix(&value.replace('X', "0"), 2).unwrap();
-        } else if key.starts_with("mem") {
-            let addr = key[4..key.len() - 1].parse::<usize>().unwrap();
-            let value = value.parse::<usize>().unwrap();
-            memory.insert(addr, value & and_bitmask | or_bitmask);
-        }
-    }
-
-    memory.values().sum()
+#[derive(Debug)]
+enum Instruction {
+    Mask(String),
+    Mem(usize, usize),
 }
 
-fn calculate_part2(file_name: impl AsRef<Path>) -> usize {
-    let file = File::open(file_name).unwrap();
-    let lines = BufReader::new(file).lines();
+fn bit2char(x: usize) -> char {
+    if x & 1 > 0 {
+        '1'
+    } else {
+        '0'
+    }
+}
 
+fn get_floating_address(floating_mask: &str, addr: usize) -> String {
+    let len = floating_mask.chars().count();
+    floating_mask
+        .chars()
+        .enumerate()
+        .map(|(i, c)| match c {
+            '0' => bit2char(addr >> (len - i - 1)),
+            _ => c,
+        })
+        .collect()
+}
+
+fn expand_address(floating_addr: &str, map: usize) -> usize {
+    let mut i = -1;
+    let expanded_addr = floating_addr
+        .chars()
+        .map(|c| match c {
+            'X' => {
+                i += 1;
+                bit2char(map >> i)
+            }
+            _ => c,
+        })
+        .collect::<String>();
+
+    usize::from_str_radix(&expanded_addr, 2).unwrap()
+}
+
+fn solve_part1(instructions: &[Instruction]) -> usize {
+    let mut mask_clear = 0;
+    let mut mask_set = 0;
     let mut memory = HashMap::new();
-    let mut bitmask = String::new();
 
-    for line in lines {
-        let line = line.unwrap();
-        let parts: Vec<_> = line.split(" = ").collect();
-        let (key, value) = (parts[0], parts[1]);
-
-        if key == "mask" {
-            bitmask = value.to_string();
-        } else if key.starts_with("mem") {
-            let addr = key[4..key.len() - 1].parse::<usize>().unwrap();
-            let value = value.parse::<usize>().unwrap();
-
-            let mut chars: Vec<_> = bitmask
-                .chars()
-                .rev()
-                .enumerate()
-                .map(|(index, ch)| match ch as char {
-                    'X' => 'X',
-                    '0' => {
-                        if (addr >> index & 1) > 0 {
-                            '1'
-                        } else {
-                            '0'
-                        }
-                    }
-                    '1' => '1',
-                    _ => unreachable!(),
-                })
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect();
-
-            let mut addresses = vec![];
-            generate_addresses(&mut chars, 0, &mut addresses);
-
-            for address in addresses {
-                memory.insert(address, value);
+    for instruction in instructions {
+        match instruction {
+            Instruction::Mask(mask) => {
+                mask_clear = usize::from_str_radix(&mask.replace('X', "1"), 2).unwrap();
+                mask_set = usize::from_str_radix(&mask.replace('X', "0"), 2).unwrap();
+            }
+            Instruction::Mem(addr, val) => {
+                memory.insert(addr, val & mask_clear | mask_set);
             }
         }
     }
@@ -82,24 +66,43 @@ fn calculate_part2(file_name: impl AsRef<Path>) -> usize {
     memory.values().sum()
 }
 
-fn generate_addresses(bitmask: &mut Vec<char>, index: usize, addresses: &mut Vec<usize>) {
-    if index == bitmask.len() {
-        let bitmask = bitmask.iter().collect::<String>();
-        addresses.push(usize::from_str_radix(&bitmask, 2).unwrap());
-        return;
+fn solve_part2(instructions: &[Instruction]) -> usize {
+    let mut mask = String::new();
+    let mut memory = HashMap::new();
+
+    for instruction in instructions {
+        match instruction {
+            Instruction::Mask(m) => mask = m.to_string(),
+            Instruction::Mem(addr, val) => {
+                let floating_address = get_floating_address(&mask, *addr);
+                let x_count = floating_address.chars().filter(|&x| x == 'X').count();
+                (0..2usize.pow(x_count as u32))
+                    .map(|x| expand_address(&floating_address, x))
+                    .for_each(|x| {
+                        memory.insert(x, *val);
+                    });
+            }
+        }
     }
 
-    match bitmask[index] {
-        '0' | '1' => generate_addresses(bitmask, index + 1, addresses),
-        'X' => {
-            bitmask[index] = '0';
-            generate_addresses(bitmask, index + 1, addresses);
-            bitmask[index] = '1';
-            generate_addresses(bitmask, index + 1, addresses);
-            bitmask[index] = 'X';
-        }
-        _ => unreachable!(),
+    memory.values().sum()
+}
+
+fn parse_instruction(line: &str) -> Instruction {
+    let mut parts = line.split(" = ");
+    let (key, val) = (parts.next().unwrap(), parts.next().unwrap());
+    if key == "mask" {
+        Instruction::Mask(val.to_owned())
+    } else {
+        let addr = key[4..key.len() - 1].parse::<usize>().unwrap();
+        let val = val.parse::<usize>().unwrap();
+        Instruction::Mem(addr, val)
     }
+}
+
+fn parse_input(file_name: impl AsRef<Path>) -> Vec<Instruction> {
+    let content = fs::read_to_string(&file_name).unwrap();
+    content.lines().map(|x| parse_instruction(x)).collect()
 }
 
 fn main() {
@@ -108,8 +111,9 @@ fn main() {
         process::exit(1);
     }
 
-    let part1 = calculate_part1(env::args().nth(1).unwrap());
-    let part2 = calculate_part2(env::args().nth(1).unwrap());
+    let instructions = parse_input(env::args().nth(1).unwrap());
+    let part1 = solve_part1(&instructions);
+    let part2 = solve_part2(&instructions);
     println!("Result (Part 1): {}", part1);
     println!("Result (Part 2): {}", part2);
 }
@@ -120,17 +124,20 @@ mod tests {
 
     #[test]
     fn test_example_input_1() {
-        assert_eq!(calculate_part1("example1.txt"), 165);
+        let instructions = parse_input("example1.txt");
+        assert_eq!(solve_part1(&instructions), 165);
     }
 
     #[test]
     fn test_example_input_2() {
-        assert_eq!(calculate_part2("example2.txt"), 208);
+        let instructions = parse_input("example2.txt");
+        assert_eq!(solve_part2(&instructions), 208);
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(calculate_part1("input.txt"), 10035335144067);
-        assert_eq!(calculate_part2("input.txt"), 3817372618036);
+        let instructions = parse_input("input.txt");
+        assert_eq!(solve_part1(&instructions), 10035335144067);
+        assert_eq!(solve_part2(&instructions), 3817372618036);
     }
 }
