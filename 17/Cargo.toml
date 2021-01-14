@@ -5,9 +5,5 @@ authors = ["Tiago Gomes <tacg@tacgomes.com>"]
 edition = "2018"
 
 [[bin]]
-name = "17-part1"
-path = "part1.rs"
-
-[[bin]]
-name = "17-part2"
-path = "part2.rs"
+name = "17"
+path = "main.rs"

@@ -1,11 +1,8 @@
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
-use std::path::Path;
+use std::fs;
 use std::process;
 
-#[derive(Debug)]
-struct Point(isize, isize, isize);
+struct Point(isize, isize, isize, isize);
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum State {
@@ -13,68 +10,74 @@ enum State {
     Inactive,
 }
 
+fn cartesian_product(hypercube: bool) -> Vec<Point> {
+    let w_range = if hypercube { (-1, 1) } else { (0, 0) };
+    (-1..=1)
+        .flat_map(|x| {
+            (-1..=1)
+                .flat_map(move |y| {
+                    (-1..=1)
+                        .clone()
+                        .flat_map(move |z| (w_range.0..=w_range.1).map(move |w| Point(x, y, z, w)))
+                })
+                .filter(|&Point(x, y, z, w)| !(x == 0 && y == 0 && z == 0 && w == 0))
+        })
+        .collect()
+}
+
 struct ConwayCubeSystem {
-    matrix: Vec<Vec<Vec<State>>>,
-    neighs: Vec<Point>,
+    cubes: Vec<Vec<Vec<Vec<State>>>>,
+    moves: Vec<Point>,
+    num_cycles: usize,
 }
 
 impl ConwayCubeSystem {
-    fn new(file_name: impl AsRef<Path>, max_cycles: usize) -> Self {
-        let file = File::open(file_name).unwrap();
-        let lines: Vec<_> = BufReader::new(file).lines().map(|x| x.unwrap()).collect();
+    fn new(s: &str, num_cycles: usize, hypercube: bool) -> Self {
+        let xylen = s.lines().count() + (num_cycles * 2);
+        let zwlen = 1 + (num_cycles * 2);
+        let mut cubes = vec![vec![vec![vec![State::Inactive; zwlen]; zwlen]; xylen]; xylen];
 
-        let xylen = lines.len() + (max_cycles * 2);
-        let zlen = 1 + (max_cycles * 2);
-        let mut matrix = vec![vec![vec![State::Inactive; zlen]; xylen]; xylen];
-
-        for (x, line) in lines.iter().enumerate() {
+        for (x, line) in s.lines().enumerate() {
             for (y, state) in line.chars().enumerate() {
                 let state = match state {
                     '#' => State::Active,
                     '.' => State::Inactive,
                     _ => unreachable!(),
                 };
-                matrix[x + max_cycles][y + max_cycles][max_cycles] = state;
+                cubes[x + num_cycles][y + num_cycles][num_cycles][num_cycles] = state;
             }
         }
 
-        let neighs = (-1..=1)
-            .flat_map(|x| {
-                (-1..=1)
-                    .flat_map(move |y| (-1..=1).clone().map(move |z| Point(x, y, z)))
-                    .filter(|&Point(x, y, z)| !(x == 0 && y == 0 && z == 0))
-            })
-            .collect::<Vec<_>>();
+        let moves = cartesian_product(hypercube);
 
-        //println!("{:#?}", matrix);
-        //println!("{:#?}", neighs);
-        ConwayCubeSystem { matrix, neighs }
-    }
-
-    fn cyclen(&mut self, num_cycles: usize) {
-        for _ in 0..num_cycles {
-            self.cycle();
+        ConwayCubeSystem {
+            cubes,
+            moves,
+            num_cycles,
         }
     }
 
-    fn cycle(&mut self) {
-        let mut new_matrix = self.matrix.clone();
-        let xylen = self.xylen();
-        let zlen = self.zlen();
+    fn iterate(&mut self) {
+        let mut new_cubes = self.cubes.clone();
 
-        for x in 0..xylen {
-            for y in 0..xylen {
-                for z in 0..zlen {
-                    let num_active_neighs = self.find_active_neighbors_count(&Point(x as isize, y as isize, z as isize));
-                    match self.matrix[x][y][z] {
-                        State::Active => {
-                            if !(num_active_neighs == 2 || num_active_neighs == 3) {
-                                new_matrix[x][y][z] = State::Inactive;
+        // TODO: only scan for the points that might be active at certain cycle.
+        for (x, xdim) in self.cubes.iter().enumerate() {
+            for (y, ydim) in xdim.iter().enumerate() {
+                for (z, zdim) in ydim.iter().enumerate() {
+                    for (w, point) in zdim.iter().enumerate() {
+                        let num_active_neighbors = self.count_active_neighbors(&Point(
+                            x as isize, y as isize, z as isize, w as isize,
+                        ));
+                        match point {
+                            State::Active => {
+                                if !(num_active_neighbors == 2 || num_active_neighbors == 3) {
+                                    new_cubes[x][y][z][w] = State::Inactive;
+                                }
                             }
-                        }
-                        State::Inactive => {
-                            if num_active_neighs == 3 {
-                                new_matrix[x][y][z] = State::Active;
+                            State::Inactive => {
+                                if num_active_neighbors == 3 {
+                                    new_cubes[x][y][z][w] = State::Active;
+                                }
                             }
                         }
                     }
@@ -82,42 +85,52 @@ impl ConwayCubeSystem {
             }
         }
 
-        self.matrix = new_matrix;
+        self.cubes = new_cubes;
     }
 
-    fn find_active_neighbors_count(&self, p: &Point) -> usize {
-        self.neighs
+    fn count_active_neighbors(&self, p: &Point) -> usize {
+        self.moves
             .iter()
-            .filter(|neigh| self.is_active_neighbor(&p, &neigh))
+            .filter(|neigh| self.is_active(&p, &neigh))
             .count()
     }
 
-    fn is_active_neighbor(&self, p: &Point, neigh: &Point) -> bool {
-        let x = p.0 + neigh.0;
-        let y = p.1 + neigh.1;
-        let z = p.2 + neigh.2;
-        let xylen = self.xylen() as isize;
-        let zlen = self.zlen() as isize;
-        if x < 0 || y < 0 || z < 0 || x >= xylen || y >= xylen || z >= zlen {
+    #[allow(clippy::many_single_char_names)]
+    fn is_active(&self, p: &Point, mov: &Point) -> bool {
+        let x = p.0 + mov.0;
+        let y = p.1 + mov.1;
+        let z = p.2 + mov.2;
+        let w = p.3 + mov.3;
+        if x < 0 || y < 0 || z < 0 || w < 0 {
             return false;
         }
-        self.matrix[x as usize][y as usize][z as usize] == State::Active
+
+        let xylen = self.xylen() as isize;
+        let zwlen = self.zwlen() as isize;
+        if x >= xylen || y >= xylen || z >= zwlen || w >= zwlen {
+            return false;
+        }
+
+        self.cubes[x as usize][y as usize][z as usize][w as usize] == State::Active
     }
 
-    fn find_active_cubes_count(&self) -> usize {
-        self.matrix
+    fn count_active_cubes(&mut self) -> usize {
+        for _ in 0..self.num_cycles {
+            self.iterate();
+        }
+        self.cubes
             .iter()
-            .flat_map(|x| x.iter().flat_map(|y| y.iter()))
+            .flat_map(|x| x.iter().flat_map(|y| y.iter().flat_map(|z| z.iter())))
             .filter(|&&x| x == State::Active)
             .count()
     }
 
     fn xylen(&self) -> usize {
-        self.matrix.len()
+        self.cubes.len()
     }
 
-    fn zlen(&self) -> usize {
-        self.matrix[0][0].len()
+    fn zwlen(&self) -> usize {
+        self.cubes[0][0].len()
     }
 }
 
@@ -127,12 +140,17 @@ fn main() {
         process::exit(1);
     }
 
-    let file_name = env::args().nth(1).unwrap();
+    let input = fs::read_to_string(&env::args().nth(1).unwrap()).unwrap();
     let num_cycles = env::args().nth(2).unwrap().parse::<usize>().unwrap();
-    let mut cube_system = ConwayCubeSystem::new(file_name, num_cycles);
-    cube_system.cyclen(num_cycles);
-    let part1 = cube_system.find_active_cubes_count();
+
+    let mut cube_system = ConwayCubeSystem::new(&input, num_cycles, false);
+    let part1 = cube_system.count_active_cubes();
+
+    let mut cube_system = ConwayCubeSystem::new(&input, num_cycles, true);
+    let part2 = cube_system.count_active_cubes();
+
     println!("Result (Part 1): {}", part1);
+    println!("Result (Part 2): {}", part2);
 }
 
 #[cfg(test)]
@@ -140,13 +158,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_example_input_1() {
-        // assert_eq!(calculate_part1("example.txt"), 112);
+    fn test_example_input_part1() {
+        let input = fs::read_to_string("example.txt").unwrap();
+        let mut cube_system = ConwayCubeSystem::new(&input, 6, false);
+        assert_eq!(cube_system.count_active_cubes(), 112);
     }
 
     #[test]
-    fn test_puzzle_input() {
-        // assert_eq!(calculate_part1("input.txt"), 10035335144067);
-        // assert_eq!(calculate_part2("input.txt"), 3817372618036);
+    fn test_example_input_part2() {
+        let input = fs::read_to_string("example.txt").unwrap();
+        let mut cube_system = ConwayCubeSystem::new(&input, 6, true);
+        assert_eq!(cube_system.count_active_cubes(), 848);
+    }
+
+    #[test]
+    fn test_puzzle_input_part1() {
+        let input = fs::read_to_string("input.txt").unwrap();
+        let mut cube_system = ConwayCubeSystem::new(&input, 6, false);
+        assert_eq!(cube_system.count_active_cubes(), 223);
+    }
+
+    #[test]
+    fn test_puzzle_input_part2() {
+        let input = fs::read_to_string("input.txt").unwrap();
+        let mut cube_system = ConwayCubeSystem::new(&input, 6, true);
+        assert_eq!(cube_system.count_active_cubes(), 1884);
     }
 }
