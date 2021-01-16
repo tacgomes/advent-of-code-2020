@@ -12,96 +12,61 @@ enum Player {
     Two,
 }
 
-fn read_hands(file_name: impl AsRef<Path>) -> (Deck, Deck) {
-    let content = fs::read_to_string(file_name).unwrap();
-    let blocks: Vec<_> = content.split("\n\n").collect();
-
-    let deck1 = blocks[0]
-        .trim()
-        .split('\n')
-        .skip(1)
-        .map(|x| x.parse::<usize>().unwrap())
-        .collect::<Deck>();
-
-    let deck2 = blocks[1]
-        .trim()
-        .split('\n')
-        .skip(1)
-        .map(|x| x.parse::<usize>().unwrap())
-        .collect::<Deck>();
-
-    (deck1, deck2)
-}
-
 fn calculate_score(deck1: &Deck, deck2: &Deck) -> usize {
     let winner_hand = if !deck1.is_empty() { deck1 } else { deck2 };
     winner_hand
         .iter()
         .rev()
         .enumerate()
-        .map(|(i, v)| v * (i + 1))
-        .sum()
+        .fold(0, |acc, (i, v)| acc + v * (i + 1))
 }
 
-fn combat_score(file_name: impl AsRef<Path>) -> usize {
-    let (mut deck1, mut deck2) = read_hands(file_name);
-
+fn combat_score(deck1: &mut Deck, deck2: &mut Deck) -> usize {
     while !deck1.is_empty() && !deck2.is_empty() {
-        let c1 = deck1.pop_front().unwrap();
-        let c2 = deck2.pop_front().unwrap();
-        if c1 > c2 {
-            deck1.push_back(c1);
-            deck1.push_back(c2);
+        let card1 = deck1.pop_front().unwrap();
+        let card2 = deck2.pop_front().unwrap();
+        if card1 > card2 {
+            deck1.push_back(card1);
+            deck1.push_back(card2);
         } else {
-            deck2.push_back(c2);
-            deck2.push_back(c1);
+            deck2.push_back(card2);
+            deck2.push_back(card1);
         }
     }
-
-    calculate_score(&deck1, &deck2)
+    calculate_score(deck1, deck2)
 }
 
-fn combat_subgame(deck1: &mut Deck, deck2: &mut Deck) -> Player {
-    let mut played_hands = HashSet::<(String, String)>::new();
+fn recursive_combat(deck1: &mut Deck, deck2: &mut Deck) -> Player {
+    let mut played_hands = HashSet::new();
 
     while !deck1.is_empty() && !deck2.is_empty() {
-        let deck1_str = deck1
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        let deck2_str = deck2
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-
-        if played_hands.contains(&(deck1_str.clone(), deck2_str.clone())) {
+        if !played_hands.insert((deck1.clone(), deck2.clone())) {
             return Player::One;
         }
 
-        let c1 = deck1.pop_front().unwrap();
-        let c2 = deck2.pop_front().unwrap();
+        let card1 = deck1.pop_front().unwrap();
+        let card2 = deck2.pop_front().unwrap();
 
-        if deck1.len() >= c1 && deck2.len() >= c2 {
-            match combat_subgame(&mut deck1.clone(), &mut deck2.clone()) {
+        if deck1.len() >= card1 && deck2.len() >= card2 {
+            let mut subdeck1 = deck1.iter().take(card1).cloned().collect();
+            let mut subdeck2 = deck2.iter().take(card2).cloned().collect();
+            match recursive_combat(&mut subdeck1, &mut subdeck2) {
                 Player::One => {
-                    deck1.push_back(c1);
-                    deck1.push_back(c2);
+                    deck1.push_back(card1);
+                    deck1.push_back(card2);
                 }
                 Player::Two => {
-                    deck2.push_back(c2);
-                    deck2.push_back(c1);
+                    deck2.push_back(card2);
+                    deck2.push_back(card1);
                 }
             }
-        } else if c1 > c2 {
-            deck1.push_back(c1);
-            deck1.push_back(c2);
+        } else if card1 > card2 {
+            deck1.push_back(card1);
+            deck1.push_back(card2);
         } else {
-            deck2.push_back(c2);
-            deck2.push_back(c1);
+            deck2.push_back(card2);
+            deck2.push_back(card1);
         }
-        played_hands.insert((deck1_str, deck2_str));
     }
 
     if !deck1.is_empty() {
@@ -111,10 +76,34 @@ fn combat_subgame(deck1: &mut Deck, deck2: &mut Deck) -> Player {
     }
 }
 
-fn recursive_combat_score(file_name: impl AsRef<Path>) -> usize {
-    let (mut deck1, mut deck2) = read_hands(file_name);
-    combat_subgame(&mut deck1, &mut deck2);
-    calculate_score(&deck1, &deck2)
+fn recursive_combat_score(deck1: &mut Deck, deck2: &mut Deck) -> usize {
+    recursive_combat(deck1, deck2);
+    calculate_score(deck1, deck2)
+}
+
+fn parse_input(file_name: impl AsRef<Path>) -> (Deck, Deck) {
+    let content = fs::read_to_string(file_name).unwrap();
+    let mut blocks = content.split("\n\n");
+
+    let deck1 = blocks
+        .next()
+        .unwrap()
+        .trim()
+        .split('\n')
+        .skip(1)
+        .map(|x| x.parse().unwrap())
+        .collect();
+
+    let deck2 = blocks
+        .next()
+        .unwrap()
+        .trim()
+        .split('\n')
+        .skip(1)
+        .map(|x| x.parse().unwrap())
+        .collect();
+
+    (deck1, deck2)
 }
 
 fn main() {
@@ -123,8 +112,9 @@ fn main() {
         process::exit(1);
     }
 
-    let part1 = combat_score(env::args().nth(1).unwrap());
-    let part2 = recursive_combat_score(env::args().nth(1).unwrap());
+    let (mut deck1, mut deck2) = parse_input(env::args().nth(1).unwrap());
+    let part1 = combat_score(&mut deck1.clone(), &mut deck2.clone());
+    let part2 = recursive_combat_score(&mut deck1, &mut deck2);
     println!("Result (Part 1): {}", part1);
     println!("Result (Part 2): {}", part2);
 }
@@ -135,18 +125,23 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(combat_score("example.txt"), 306);
-        assert_eq!(recursive_combat_score("example.txt"), 291);
+        let (deck1, deck2) = parse_input("example.txt");
+        assert_eq!(combat_score(&mut deck1.clone(), &mut deck2.clone()), 306);
+        assert_eq!(
+            recursive_combat_score(&mut deck1.clone(), &mut deck2.clone()),
+            291
+        );
     }
 
     #[test]
     fn test_puzzle_input_combat() {
-        assert_eq!(combat_score("input.txt"), 31957);
+        let (mut deck1, mut deck2) = parse_input("input.txt");
+        assert_eq!(combat_score(&mut deck1, &mut deck2), 31957);
     }
 
     #[test]
-    #[ignore]
     fn test_puzzle_input_recursive_combat() {
-        assert_eq!(recursive_combat_score("input.txt"), 33212);
+        let (mut deck1, mut deck2) = parse_input("input.txt");
+        assert_eq!(recursive_combat_score(&mut deck1, &mut deck2), 33212);
     }
 }
