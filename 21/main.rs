@@ -7,52 +7,24 @@ use std::process;
 
 use regex::Regex;
 
-fn find_allergens(file_name: impl AsRef<Path>) -> (usize, String) {
-    let content = fs::read_to_string(file_name).unwrap();
+type AlergenIngredientsLists = HashMap<String, Vec<HashSet<String>>>;
 
-    let re = Regex::new(r"(?P<ingredients>.+) \(contains (?P<allergens>.+)\)").unwrap();
-
-    let mut all_ingredients = vec![];
-    let mut allergen_ingredients_lists = HashMap::new();
-
-    for line in content.trim().split('\n') {
-        let caps = re.captures(&line).unwrap();
-        let ingredients = caps["ingredients"].split_whitespace().collect::<Vec<_>>();
-        let allergens = caps["allergens"].split(", ").collect::<Vec<_>>();
-
-        for ingredient in &ingredients {
-            all_ingredients.push(ingredient.to_string());
-        }
-
-        for allergen in &allergens {
-            allergen_ingredients_lists
-                .entry(allergen.to_string())
-                .or_insert(Vec::new())
-                .push(
-                    ingredients
-                        .iter()
-                        .map(|ingredient| ingredient.to_string())
-                        .collect::<HashSet<String>>(),
-                );
-        }
-    }
-
+fn find_allergens(ingredients: &[String], allergens: &AlergenIngredientsLists) -> (usize, String) {
     // Ingredient candidates for an allergen
     let mut allergen_candidates = HashMap::new();
 
-    for (allergen, ingredients_lists) in &allergen_ingredients_lists {
+    for (allergen, ingredients_lists) in allergens {
         // Get the list of ingredients that can contain this allergen.
         // For an ingredient to be a candidate, it must appear in all
         // ingredient lists that have that allergen.
         let intersect = ingredients_lists[0]
             .iter()
             .filter(|x| ingredients_lists[1..].iter().all(|s| s.contains(*x)))
-            .cloned()
-            .collect::<HashSet<String>>();
-        allergen_candidates.insert(allergen.clone(), intersect.clone());
+            .collect::<HashSet<_>>();
+        allergen_candidates.insert(allergen, intersect);
     }
 
-    let safe_ingredients_count = all_ingredients
+    let safe_ingredients_count = ingredients
         .iter()
         .filter(|&ingredient| {
             !allergen_candidates
@@ -61,10 +33,11 @@ fn find_allergens(file_name: impl AsRef<Path>) -> (usize, String) {
         })
         .count();
 
-    // Ingredient found to correspond to an allergen
+    // (allergen, ingredient) tuples with the ingredient that was found
+    // to correspond to a given allergen.
     let mut allergens_discovered = vec![];
 
-    while allergens_discovered.len() != allergen_ingredients_lists.len() {
+    while allergens_discovered.len() != allergens.len() {
         let (allergen, candidates) = allergen_candidates
             .iter_mut()
             .find(|(_, candidates)| candidates.len() == 1)
@@ -72,22 +45,54 @@ fn find_allergens(file_name: impl AsRef<Path>) -> (usize, String) {
         let allergen = allergen.clone();
         let ingredient = candidates.iter().next().unwrap().clone();
 
-        allergens_discovered.push((allergen.clone(), ingredient.clone()));
-
         allergen_candidates.remove(&allergen);
         for candidates in &mut allergen_candidates.values_mut() {
             candidates.remove(&ingredient);
         }
+
+        allergens_discovered.push((allergen, ingredient));
     }
 
     allergens_discovered.sort_by_key(|(allergen, _)| allergen.clone());
     let unsafe_ingredients = allergens_discovered
-        .iter()
-        .map(|(_, ingredient)| ingredient.to_string())
+        .into_iter()
+        .map(|(_, ingredient)| ingredient.to_owned())
         .collect::<Vec<_>>()
         .join(",");
 
     (safe_ingredients_count, unsafe_ingredients)
+}
+
+fn parse_input(file_name: impl AsRef<Path>) -> (Vec<String>, AlergenIngredientsLists) {
+    let re = Regex::new(r"(?P<ingredients>.+) \(contains (?P<allergens>.+)\)").unwrap();
+    let content = fs::read_to_string(file_name).unwrap();
+
+    let mut ingredients = vec![];
+    let mut allergens = HashMap::new();
+
+    for line in content.trim().split('\n') {
+        let caps = re.captures(&line).unwrap();
+        let parsed_ingredients = caps["ingredients"].split_whitespace();
+        let parsed_allergens = caps["allergens"].split(", ");
+
+        for ingredient in parsed_ingredients.clone() {
+            ingredients.push(ingredient.to_owned());
+        }
+
+        for allergen in parsed_allergens {
+            allergens
+                .entry(allergen.to_string())
+                .or_insert_with(Vec::new)
+                .push(
+                    parsed_ingredients
+                        .clone()
+                        .map(|ingredient| ingredient.to_owned())
+                        .collect::<HashSet<String>>(),
+                );
+        }
+    }
+
+    (ingredients, allergens)
 }
 
 fn main() {
@@ -96,7 +101,9 @@ fn main() {
         process::exit(1);
     }
 
-    let res = find_allergens(env::args().nth(1).unwrap());
+    let file_name = env::args().nth(1).unwrap();
+    let (ingredients, allergens) = parse_input(&file_name);
+    let res = find_allergens(&ingredients, &allergens);
     println!("Result: {:?}", res);
 }
 
@@ -106,13 +113,15 @@ mod tests {
 
     #[test]
     fn test_example_input() {
+        let (ingredients, allergens) = parse_input("example.txt");
         let s = "mxmxvkd,sqjhc,fvjkl".to_string();
-        assert_eq!(find_allergens("example.txt"), (5, s));
+        assert_eq!(find_allergens(&ingredients, &allergens), (5, s));
     }
 
     #[test]
     fn test_puzzle_input() {
+        let (ingredients, allergens) = parse_input("input.txt");
         let s = "kqv,jxx,zzt,dklgl,pmvfzk,tsnkknk,qdlpbt,tlgrhdh".to_string();
-        assert_eq!(find_allergens("input.txt"), (2493, s));
+        assert_eq!(find_allergens(&ingredients, &allergens), (2493, s));
     }
 }
