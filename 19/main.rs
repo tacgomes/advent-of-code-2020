@@ -4,11 +4,10 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
-#[derive(Debug)]
 enum Rule {
     Terminal(char),
-    Conjunction(Vec<usize>),
-    Disjunction(Vec<usize>, Vec<usize>),
+    MatchAll(Vec<usize>),
+    MatchEither(Vec<usize>, Vec<usize>),
 }
 
 fn merge(a: &[usize], b: &[usize]) -> Vec<usize> {
@@ -23,58 +22,68 @@ fn matches(queue: &[usize], input: &str, rules: &HashMap<usize, Rule>) -> bool {
         _ => (),
     }
 
-    let rule = rules.get(&queue[0]).unwrap();
-
-    match rule {
+    match rules.get(&queue[0]).unwrap() {
         Rule::Terminal(t) => input.starts_with(*t) && matches(&queue[1..], &input[1..], rules),
-        Rule::Conjunction(c) => matches(&merge(c, &queue[1..]), input, rules),
-        Rule::Disjunction(a, b) => {
+        Rule::MatchAll(c) => matches(&merge(c, &queue[1..]), input, rules),
+        Rule::MatchEither(a, b) => {
             matches(&merge(a, &queue[1..]), input, rules)
                 || matches(&merge(b, &queue[1..]), input, rules)
         }
     }
 }
 
-fn parse(file_name: impl AsRef<Path>) -> (HashMap<usize, Rule>, Vec<String>) {
-    let content = fs::read_to_string(file_name).unwrap();
-    let blocks: Vec<_> = content.split("\n\n").collect();
+fn parse_choice(choice: &str) -> Vec<usize> {
+    choice
+        .split_whitespace()
+        .map(|x| x.parse().unwrap())
+        .collect()
+}
 
-    let mut rules = HashMap::new();
+fn parse_rule(line: &str) -> (usize, Rule) {
+    let mut parts = line.split(':');
+    let rule_num = parts.next().unwrap().parse().unwrap();
+    let rule_rhs = parts.next().unwrap().trim();
 
-    for line in blocks[0].trim().split('\n') {
-        let parts = line.split(':').collect::<Vec<_>>();
-        let rule_num = parts[0].parse::<usize>().unwrap();
-        let rule_rhs = parts[1].trim();
-
-        if rule_rhs.trim().starts_with('"') {
-            rules.insert(rule_num, Rule::Terminal(rule_rhs.chars().nth(1).unwrap()));
-        } else {
-            let disjunctions = rule_rhs
-                .split('|')
-                .map(|x| {
-                    x.split_whitespace()
-                        .map(|y| y.parse::<usize>().unwrap())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-
-            let rule = match disjunctions.len() {
-                1 => Rule::Conjunction(disjunctions[0].clone()),
-                2 => Rule::Disjunction(disjunctions[0].clone(), disjunctions[1].clone()),
-                _ => panic!(),
-            };
-
-            rules.insert(rule_num, rule);
-        }
+    if rule_rhs.trim().starts_with('"') {
+        (rule_num, Rule::Terminal(rule_rhs.chars().nth(1).unwrap()))
+    } else {
+        let choices = rule_rhs
+            .split('|')
+            .map(|x| parse_choice(x))
+            .collect::<Vec<_>>();
+        let rule = match choices.len() {
+            1 => Rule::MatchAll(choices[0].clone()),
+            2 => Rule::MatchEither(choices[0].clone(), choices[1].clone()),
+            _ => panic!(),
+        };
+        (rule_num, rule)
     }
+}
 
-    let strings = blocks[1].lines().map(|x| x.to_string()).collect();
+fn parse_input(file_name: impl AsRef<Path>) -> (HashMap<usize, Rule>, Vec<String>) {
+    let content = fs::read_to_string(file_name).unwrap();
+    let mut blocks = content.split("\n\n");
+
+    let rules = blocks
+        .next()
+        .unwrap()
+        .trim()
+        .split('\n')
+        .map(|x| parse_rule(&x))
+        .collect();
+
+    let strings = blocks
+        .next()
+        .unwrap()
+        .lines()
+        .map(|x| x.to_string())
+        .collect();
 
     (rules, strings)
 }
 
 fn count_valid_strings(file_name: impl AsRef<Path>) -> usize {
-    let (rules, strings) = parse(file_name);
+    let (rules, strings) = parse_input(file_name);
     strings.iter().filter(|m| matches(&[0], m, &rules)).count()
 }
 
