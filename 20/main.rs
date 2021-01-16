@@ -10,8 +10,17 @@ const RIGHT: usize = 1;
 const BOTTOM: usize = 2;
 const LEFT: usize = 3;
 
-type Grid = Vec<Vec<Option<Tile>>>;
+const SEA_MONSTER: &str = "
+                  #
+#    ##    ##    ###
+ #  #  #  #  #  #";
+
+type Grid = [Vec<Option<Tile>>];
 type Image = Vec<Vec<char>>;
+
+fn mirror(matrix: &mut Image) {
+    matrix.reverse();
+}
 
 fn rotate(matrix: &mut Image, n: usize) {
     assert_eq!(matrix.len(), matrix[0].len());
@@ -29,59 +38,61 @@ fn rotate(matrix: &mut Image, n: usize) {
     }
 }
 
-fn mirror(matrix: &mut Image) {
-    matrix.reverse();
+fn hash_border(border: &str) -> u16 {
+    border
+        .chars()
+        .rev()
+        .enumerate()
+        .filter(|&(_, x)| x == '#')
+        .fold(0, |acc, (i, _)| acc | 1 << i)
+}
+
+fn add_rotations(mut border: Vec<String>) -> Vec<Vec<u16>> {
+    let mut alignments = vec![];
+    for _ in 0..4 {
+        alignments.push(border.iter().map(|x| hash_border(x)).collect());
+        border = vec![
+            border[LEFT].chars().rev().collect(),
+            border[TOP].clone(),
+            border[RIGHT].chars().rev().collect(),
+            border[BOTTOM].clone(),
+        ];
+    }
+    alignments
 }
 
 #[derive(Clone)]
 struct Tile {
-    tile_id: usize,
-    data: Image,
-    alignments: Vec<Vec<String>>,
+    id: usize,
+    image: Image,
+    alignments: Vec<Vec<u16>>,
     current_alignment: usize,
 }
 
 impl Tile {
-    fn new(tile_id: usize, data: Image, borders: Vec<String>) -> Self {
-        // TODO represent borders as integers that have a bit set at a
-        // certain position, if the border has a '#' in the same
-        // position. This would make border comparation fast.
-        let mut alignments = vec![];
-
-        let mut add_rotations = |border: Vec<String>| {
-            alignments.push(border.clone());
-            let mut border = border.to_vec();
-            for _ in 0..3 {
-                border = vec![
-                    border[LEFT].chars().rev().clone().collect(),
-                    border[TOP].clone(),
-                    border[RIGHT].chars().rev().clone().collect(),
-                    border[BOTTOM].clone(),
-                ];
-                alignments.push(border.clone());
-            }
-        };
-
+    fn new(id: usize, image: Image, borders: Vec<String>) -> Self {
         let mirrored = vec![
             borders[BOTTOM].clone(),
-            borders[RIGHT].chars().rev().clone().collect(),
+            borders[RIGHT].chars().rev().collect(),
             borders[TOP].clone(),
-            borders[LEFT].chars().rev().clone().collect(),
+            borders[LEFT].chars().rev().collect(),
         ];
 
-        add_rotations(mirrored);
-        add_rotations(borders);
+        let alignments = add_rotations(mirrored)
+            .into_iter()
+            .chain(add_rotations(borders).into_iter())
+            .collect();
 
         Tile {
-            tile_id,
-            data,
+            id,
+            image,
             alignments,
             current_alignment: 0,
         }
     }
 
     fn id(&self) -> usize {
-        self.tile_id
+        self.id
     }
 
     fn next_border_alignment(&mut self) {
@@ -91,58 +102,63 @@ impl Tile {
 
     fn apply_border_alignment(&mut self) {
         if self.current_alignment < 4 {
-            mirror(&mut self.data);
+            mirror(&mut self.image);
         }
         match self.current_alignment {
-            0 | 4 => rotate(&mut self.data, 0),
-            1 | 5 => rotate(&mut self.data, 1),
-            2 | 6 => rotate(&mut self.data, 2),
-            3 | 7 => rotate(&mut self.data, 3),
+            0 | 4 => rotate(&mut self.image, 0),
+            1 | 5 => rotate(&mut self.image, 1),
+            2 | 6 => rotate(&mut self.image, 2),
+            3 | 7 => rotate(&mut self.image, 3),
             _ => unreachable!(),
         }
     }
 
-    fn top_border(&self) -> &str {
-        &self.alignments[self.current_alignment][TOP]
+    fn top_border(&self) -> u16 {
+        self.alignments[self.current_alignment][TOP]
     }
 
-    fn right_border(&self) -> &str {
-        &self.alignments[self.current_alignment][RIGHT]
+    fn right_border(&self) -> u16 {
+        self.alignments[self.current_alignment][RIGHT]
     }
 
-    fn bottom_border(&self) -> &str {
-        &self.alignments[self.current_alignment][BOTTOM]
+    fn bottom_border(&self) -> u16 {
+        self.alignments[self.current_alignment][BOTTOM]
     }
 
-    fn left_border(&self) -> &str {
-        &self.alignments[self.current_alignment][LEFT]
+    fn left_border(&self) -> u16 {
+        self.alignments[self.current_alignment][LEFT]
     }
 
-    fn data(&self) -> &Image {
-        &self.data
+    fn image(&self) -> &Image {
+        &self.image
     }
 }
 
-#[allow(clippy::ptr_arg)]
-fn validate_alignment(grid: &Grid) -> bool {
-    let aligned_v = |x: &Option<Tile>, y: &Option<Tile>| {
+fn vertically_aligned(grid: &Grid) -> bool {
+    let aligned = |x: &Option<Tile>, y: &Option<Tile>| {
         x.as_ref().unwrap().right_border() == y.as_ref().unwrap().left_border()
     };
-
-    let aligned_h = |x: &Option<Tile>, y: &Option<Tile>| {
-        x.as_ref().unwrap().bottom_border() == y.as_ref().unwrap().top_border()
-    };
-
     grid.iter().all(|r| {
         r.windows(2)
             .filter(|w| w[1].is_some())
-            .all(|w| aligned_v(&w[0], &w[1]))
-    }) && grid.windows(2).all(|w| {
+            .all(|w| aligned(&w[0], &w[1]))
+    })
+}
+
+fn horizontally_aligned(grid: &Grid) -> bool {
+    let aligned = |x: &Option<Tile>, y: &Option<Tile>| {
+        x.as_ref().unwrap().bottom_border() == y.as_ref().unwrap().top_border()
+    };
+    grid.windows(2).all(|w| {
         w[0].iter()
             .zip(&w[1])
             .filter(|(_, y)| y.is_some())
-            .all(|(x, y)| aligned_h(x, y))
+            .all(|(x, y)| aligned(x, y))
     })
+}
+
+fn aligned(grid: &Grid) -> bool {
+    vertically_aligned(grid) && horizontally_aligned(grid)
 }
 
 fn find_valid_alignment(
@@ -151,7 +167,7 @@ fn find_valid_alignment(
     col: usize,
     mut grid: &mut Grid,
 ) -> bool {
-    if !validate_alignment(&grid) {
+    if !aligned(&grid) {
         return false;
     }
 
@@ -179,59 +195,64 @@ fn find_valid_alignment(
     false
 }
 
-#[allow(clippy::ptr_arg)]
 fn assemble_image(grid: &Grid) -> Image {
-    let tile_len = grid[0][0].as_ref().unwrap().data().len();
+    let tile_len = grid[0][0].as_ref().unwrap().image().len();
     grid.iter()
         .flat_map(|row| {
             (1..tile_len - 1).map(move |i| {
                 row.iter()
                     .flat_map(|t| {
-                        t.as_ref().unwrap().data()[i]
+                        t.as_ref().unwrap().image()[i]
                             .iter()
                             .skip(1)
-                            .take(t.as_ref().unwrap().data()[i].len() - 2)
+                            .take(t.as_ref().unwrap().image()[i].len() - 2)
                     })
                     .cloned()
-                    .collect::<Vec<_>>()
+                    .collect()
             })
         })
-        .collect::<Vec<Vec<_>>>()
+        .collect()
 }
 
-fn sea_monsters_count_util(image: &mut Image) -> usize {
-    let mut num_monsters = 0;
-    for (r, _) in image.iter().enumerate().skip(1).take(image.len() - 2) {
+fn match_pattern(image: &mut Image, pattern: &[(usize, usize)]) -> usize {
+    let max_row = pattern.iter().map(|(r, _)| r).max().unwrap();
+    let max_col = pattern.iter().map(|(_, c)| c).max().unwrap();
+    let mut matches = 0;
+
+    for (r, _) in image.iter().enumerate().take(image.len() - max_row) {
         let mut c = 0;
-        while c < image[0].len() - 19 {
-            if image[r][c] == '#'
-                && image[r - 1][c + 18] == '#'
-                && image[r][c + 5] == '#'
-                && image[r][c + 6] == '#'
-                && image[r][c + 11] == '#'
-                && image[r][c + 12] == '#'
-                && image[r][c + 17] == '#'
-                && image[r][c + 18] == '#'
-                && image[r][c + 19] == '#'
-                && image[r + 1][c + 1] == '#'
-                && image[r + 1][c + 4] == '#'
-                && image[r + 1][c + 7] == '#'
-                && image[r + 1][c + 10] == '#'
-                && image[r + 1][c + 13] == '#'
-                && image[r + 1][c + 16] == '#'
-            {
-                num_monsters += 1;
-                c += 19;
+        while c < image[0].len() - max_col {
+            if pattern.iter().all(|(dr, dc)| image[r + dr][c + dc] == '#') {
+                matches += 1;
+                c += max_col;
+            } else {
+                c += 1;
             }
-            c += 1;
         }
     }
-    num_monsters
+
+    matches
 }
 
-fn sea_monsters_count(image: &mut Image) -> usize {
+fn compile_pattern(pattern: &str) -> Vec<(usize, usize)> {
+    pattern
+        .lines()
+        .skip(1)
+        .enumerate()
+        .flat_map(|(r, row)| {
+            row.chars()
+                .enumerate()
+                .filter(|&(_, s)| s == '#')
+                .map(move |(c, _)| (r, c))
+        })
+        .collect()
+}
+
+fn count_sea_monsters(image: &mut Image) -> usize {
+    let pattern = compile_pattern(SEA_MONSTER);
+
     for _ in 0..4 {
-        match sea_monsters_count_util(image) {
+        match match_pattern(image, &pattern) {
             0 => rotate(image, 1),
             count => return count,
         }
@@ -240,7 +261,7 @@ fn sea_monsters_count(image: &mut Image) -> usize {
     mirror(image);
 
     for _ in 0..4 {
-        match sea_monsters_count_util(image) {
+        match match_pattern(image, &pattern) {
             0 => rotate(image, 1),
             count => return count,
         }
@@ -249,44 +270,33 @@ fn sea_monsters_count(image: &mut Image) -> usize {
     0
 }
 
-fn read_tiles(file_name: impl AsRef<Path>) -> VecDeque<Tile> {
-    let content = fs::read_to_string(file_name).unwrap();
-    let blocks = content.trim().split("\n\n").collect::<Vec<_>>();
+fn parse_tile(tile: &str) -> Tile {
+    let mut lines = tile.split('\n');
+    let line = lines.next().unwrap();
+    let id = line[5..line.len() - 1].parse().unwrap();
 
-    let mut tiles = VecDeque::new();
+    let image = lines.clone().map(|x| x.chars().collect()).collect();
 
-    for tile in blocks {
-        let mut lines = tile.split('\n');
-        let line = &lines.next().unwrap();
-        let tile_id = line[5..line.len() - 1].parse::<usize>().unwrap();
+    let borders = vec![
+        lines.clone().next().unwrap().to_string(),
+        lines.clone().map(|x| x.chars().last().unwrap()).collect(),
+        lines.clone().last().unwrap().to_string(),
+        lines.clone().map(|x| x.chars().next().unwrap()).collect(),
+    ];
 
-        let data = lines
-            .clone()
-            .map(|l| l.chars().collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-
-        let borders = vec![
-            lines.clone().next().unwrap().to_string(),
-            lines
-                .clone()
-                .map(|l| l.chars().last().unwrap())
-                .collect::<String>(),
-            lines.clone().last().unwrap().to_string(),
-            lines
-                .clone()
-                .map(|l| l.chars().next().unwrap())
-                .collect::<String>(),
-        ];
-
-        tiles.push_back(Tile::new(tile_id, data, borders));
-    }
-
-    tiles
+    Tile::new(id, image, borders)
 }
 
-fn solve(file_name: impl AsRef<Path>) -> (usize, usize) {
-    let mut tiles = read_tiles(file_name);
+fn parse_input(file_name: impl AsRef<Path>) -> VecDeque<Tile> {
+    fs::read_to_string(file_name)
+        .unwrap()
+        .trim()
+        .split("\n\n")
+        .map(|x| parse_tile(x))
+        .collect()
+}
 
+fn solve(mut tiles: VecDeque<Tile>) -> (usize, usize) {
     let len = (tiles.len() as f64).sqrt() as usize;
     let mut grid = vec![vec![None; len]; len];
 
@@ -296,19 +306,18 @@ fn solve(file_name: impl AsRef<Path>) -> (usize, usize) {
         .flat_map(|x| x.iter_mut())
         .for_each(|t| t.as_mut().unwrap().apply_border_alignment());
 
-    let mut image = assemble_image(&grid);
-
     let corners_product = [(0, 0), (0, len - 1), (len - 1, 0), (len - 1, len - 1)]
         .iter()
         .map(|&(r, c)| grid[r][c].as_ref().unwrap().id())
         .product();
 
+    let mut image = assemble_image(&grid);
     let roughness = image
         .iter()
         .flat_map(|x| x.iter())
         .filter(|&&c| c == '#')
         .count()
-        - sea_monsters_count(&mut image) * 15;
+        - count_sea_monsters(&mut image) * 15;
 
     (corners_product, roughness)
 }
@@ -319,7 +328,8 @@ fn main() {
         process::exit(1);
     }
 
-    let (corners_product, roughness) = solve(env::args().nth(1).unwrap());
+    let tiles = parse_input(env::args().nth(1).unwrap());
+    let (corners_product, roughness) = solve(tiles);
     println!("Result (Part 1): {}", corners_product);
     println!("Result (Part 2): {}", roughness);
 }
@@ -330,11 +340,13 @@ mod tests {
 
     #[test]
     fn test_example_input() {
-        assert_eq!(solve("example.txt"), (20899048083289, 273));
+        let tiles = parse_input("example.txt");
+        assert_eq!(solve(tiles), (20899048083289, 273));
     }
 
     #[test]
     fn test_puzzle_input() {
-        assert_eq!(solve("input.txt"), (30425930368573, 2453));
+        let tiles = parse_input("input.txt");
+        assert_eq!(solve(tiles), (30425930368573, 2453));
     }
 }
