@@ -34,7 +34,7 @@ fn calculate_part1(cups: &str) -> String {
     let input = cups
         .chars()
         .map(|x| x.to_digit(10).unwrap() as usize)
-        .collect::<Vec<usize>>();
+        .collect::<Vec<_>>();
 
     let mut cups = vec![0; input.len() + 1];
     for i in 0..input.len() - 1 {
@@ -62,7 +62,7 @@ fn calculate_part2(cups: &str) -> usize {
     let input = cups
         .chars()
         .map(|x| x.to_digit(10).unwrap() as usize)
-        .collect::<Vec<usize>>();
+        .collect::<Vec<_>>();
 
     let mut cups = vec![0; PART_2_NUM_CUPS + 1];
     for i in 0..input.len() - 1 {
