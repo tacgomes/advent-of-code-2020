@@ -2,7 +2,14 @@ use std::env;
 use std::process;
 
 fn discrete_logarithm(power: usize, base: usize, modulus: usize) -> usize {
-    // Solve the following congruence: base^exponent ≡ power (mod modulus)
+    /* Solve the following congruence:
+     *
+     * base^exponent ≡ power (mod modulus)
+     *
+     * A possible improvement would be finding the discrete logarithm
+     * using the baby-step giant-step algorithm, but this brute-force
+     * approach already runs fast enough for the input.
+     */
     let mut num = 1;
     let mut exponent = 0;
     while num != power {
