@@ -1,36 +1,22 @@
 use std::env;
 use std::process;
 
+fn discrete_logarithm(power: usize, base: usize, modulus: usize) -> usize {
+    // Solve the following congruence: base^exponent ≡ power (mod modulus)
+    let mut num = 1;
+    let mut exponent = 0;
+    while num != power {
+        num = num * base % modulus;
+        exponent += 1;
+    }
+    exponent
+}
+
 fn find_encryption_key(door_pub_key: &str, card_pub_key: &str) -> usize {
     let door_pub_key = door_pub_key.parse::<usize>().unwrap();
     let card_pub_key = card_pub_key.parse::<usize>().unwrap();
-
-    let pub_key1;
-    let pub_key2;
-    if door_pub_key % 7 == 0 {
-        pub_key1 = door_pub_key;
-        pub_key2 = card_pub_key;
-    } else {
-        pub_key1 = card_pub_key;
-        pub_key2 = door_pub_key;
-    }
-
-    let mut value = 1;
-    let mut loop_size = 0;
-
-    while value != pub_key1 {
-        value *= 7;
-        value %= 20201227;
-        loop_size += 1;
-    }
-
-    value = 1;
-    for _ in 0..loop_size {
-        value *= pub_key2;
-        value %= 20201227;
-    }
-
-    value
+    let loop_size = discrete_logarithm(door_pub_key, 7, 20201227);
+    (0..loop_size).fold(1, |acc, _| acc * card_pub_key % 20201227)
 }
 
 fn main() {
@@ -42,8 +28,9 @@ fn main() {
         process::exit(1);
     }
 
-    let encryption_key =
-        find_encryption_key(&env::args().nth(1).unwrap(), &env::args().nth(2).unwrap());
+    let door_pub_key = env::args().nth(1).unwrap();
+    let card_pub_key = env::args().nth(2).unwrap();
+    let encryption_key = find_encryption_key(&door_pub_key, &card_pub_key);
     println!("Result: {}", encryption_key);
 }
 
