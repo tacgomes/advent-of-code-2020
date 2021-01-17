@@ -26,8 +26,8 @@ directly with `rustc`:
 
 ```sh
 cd 01
-rustc part1.rs
-./part1 input.txt
+rustc main.rs
+./main input.txt
 ```
 
 [Advent of Code]: https://adventofcode.com/2020/about
