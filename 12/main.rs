@@ -91,96 +91,82 @@ enum Move {
     Forward(isize),
 }
 
-struct ShipNavigation {
-    moves: Vec<Move>,
+fn solve_part1(moves: &Vec<Move>) -> usize {
+    let (mut x, mut y) = (0, 0);
+    let mut direction = Direction::East;
+
+    for mov in moves {
+        match mov {
+            Move::North(units) => y += units,
+            Move::East(units) => x += units,
+            Move::South(units) => y -= units,
+            Move::West(units) => x -= units,
+            Move::Right(rot) => direction.rotate_clockwise(&rot),
+            Move::Left(rot) => direction.rotate_anticlockwise(&rot),
+            Move::Forward(units) => match direction {
+                Direction::North => y += units,
+                Direction::East => x += units,
+                Direction::South => y -= units,
+                Direction::West => x -= units,
+            },
+        }
+    }
+
+    (x.abs() + y.abs()) as usize
 }
 
-impl ShipNavigation {
-    fn new(moves: Vec<Move>) -> Self {
-        ShipNavigation { moves }
-    }
+fn solve_part2(moves: &Vec<Move>) -> usize {
+    let (mut ship_x, mut ship_y): (isize, isize) = (0, 0);
+    let (mut wp_x, mut wp_y): (isize, isize) = (10, 1);
 
-    fn navigate_part1(&self) -> usize {
-        let (mut x, mut y) = (0, 0);
-        let mut direction = Direction::East;
-
-        for mov in &self.moves {
-            match mov {
-                Move::North(units) => y += units,
-                Move::East(units) => x += units,
-                Move::South(units) => y -= units,
-                Move::West(units) => x -= units,
-                Move::Right(rot) => direction.rotate_clockwise(&rot),
-                Move::Left(rot) => direction.rotate_anticlockwise(&rot),
-                Move::Forward(units) => match direction {
-                    Direction::North => y += units,
-                    Direction::East => x += units,
-                    Direction::South => y -= units,
-                    Direction::West => x -= units,
-                },
-            }
-        }
-
-        (x.abs() + y.abs()) as usize
-    }
-
-    fn navigate_part2(&self) -> usize {
-        let (mut ship_x, mut ship_y): (isize, isize) = (0, 0);
-        let (mut wp_x, mut wp_y): (isize, isize) = (10, 1);
-
-        for mov in &self.moves {
-            match mov {
-                Move::North(units) => wp_y += units,
-                Move::East(units) => wp_x += units,
-                Move::South(units) => wp_y -= units,
-                Move::West(units) => wp_x -= units,
-                Move::Right(rot) => {
-                    Self::rotate_coord_clockwise(&mut wp_x, &mut wp_y, rot)
-                }
-                Move::Left(rot) => {
-                    Self::rotate_coord_anticlockwise(&mut wp_x, &mut wp_y, rot)
-                }
-                Move::Forward(units) => {
-                    ship_x += wp_x * units;
-                    ship_y += wp_y * units;
-                }
-            }
-        }
-
-        (ship_x.abs() + ship_y.abs()) as usize
-    }
-
-    fn rotate_coord_clockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
-        match rot {
-            Rotation::D090 => {
-                mem::swap(&mut *x, &mut *y);
-                *y = y.neg();
-            }
-            Rotation::D180 => {
-                *x = x.neg();
-                *y = y.neg();
-            }
-            Rotation::D270 => {
-                mem::swap(&mut *x, &mut *y);
-                *x = x.neg();
+    for mov in moves {
+        match mov {
+            Move::North(units) => wp_y += units,
+            Move::East(units) => wp_x += units,
+            Move::South(units) => wp_y -= units,
+            Move::West(units) => wp_x -= units,
+            Move::Right(rot) => rotate_coord_clockwise(&mut wp_x, &mut wp_y, rot),
+            Move::Left(rot) => rotate_coord_anticlockwise(&mut wp_x, &mut wp_y, rot),
+            Move::Forward(units) => {
+                ship_x += wp_x * units;
+                ship_y += wp_y * units;
             }
         }
     }
 
-    fn rotate_coord_anticlockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
-        match rot {
-            Rotation::D090 => {
-                mem::swap(&mut *x, &mut *y);
-                *x = x.neg();
-            }
-            Rotation::D180 => {
-                *x = x.neg();
-                *y = y.neg();
-            }
-            Rotation::D270 => {
-                mem::swap(&mut *x, &mut *y);
-                *y = y.neg();
-            }
+    (ship_x.abs() + ship_y.abs()) as usize
+}
+
+fn rotate_coord_clockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
+    match rot {
+        Rotation::D090 => {
+            mem::swap(&mut *x, &mut *y);
+            *y = y.neg();
+        }
+        Rotation::D180 => {
+            *x = x.neg();
+            *y = y.neg();
+        }
+        Rotation::D270 => {
+            mem::swap(&mut *x, &mut *y);
+            *x = x.neg();
+        }
+    }
+}
+
+fn rotate_coord_anticlockwise<'a>(x: &'a mut isize, y: &'a mut isize, rot: &Rotation) {
+    match rot {
+        Rotation::D090 => {
+            mem::swap(&mut *x, &mut *y);
+            *x = x.neg();
+        }
+        Rotation::D180 => {
+            *x = x.neg();
+            *y = y.neg();
+        }
+        Rotation::D270 => {
+            mem::swap(&mut *x, &mut *y);
+            *y = y.neg();
         }
     }
 }
@@ -212,11 +198,10 @@ fn main() {
     }
 
     let moves = parse_input(env::args().nth(1).unwrap());
-    let ship_navigation = ShipNavigation::new(moves);
-    let distance_part1 = ship_navigation.navigate_part1();
-    let distance_part2 = ship_navigation.navigate_part2();
-    println!("Result (Part 1): {:?}", distance_part1);
-    println!("Result (Part 2): {:?}", distance_part2);
+    let part1 = solve_part1(&moves);
+    let part2 = solve_part2(&moves);
+    println!("Result (Part 1): {:?}", part1);
+    println!("Result (Part 2): {:?}", part2);
 }
 
 #[cfg(test)]
@@ -226,16 +211,14 @@ mod tests {
     #[test]
     fn test_example_input() {
         let moves = parse_input("example.txt");
-        let ship_navigation = ShipNavigation::new(moves);
-        assert_eq!(ship_navigation.navigate_part1(), 25);
-        assert_eq!(ship_navigation.navigate_part2(), 286);
+        assert_eq!(solve_part1(&moves), 25);
+        assert_eq!(solve_part2(&moves), 286);
     }
 
     #[test]
     fn test_puzzle_input() {
         let moves = parse_input("input.txt");
-        let ship_navigation = ShipNavigation::new(moves);
-        assert_eq!(ship_navigation.navigate_part1(), 1319);
-        assert_eq!(ship_navigation.navigate_part2(), 62434);
+        assert_eq!(solve_part1(&moves), 1319);
+        assert_eq!(solve_part2(&moves), 62434);
     }
 }
