@@ -4,12 +4,6 @@
 
 My solutions in Rust to the [Advent of Code], 2020 edition.
 
-I deliberately choose not to use any external Cargo package to practice
-exercising the core features of the language. The exception to this rule was on
-_Puzzle 07_ where not using an external package such as Regex would make
-parsing the input a very tedious task. For the sake of simplicity, I skipped
-all error handling and therefore all the programs assume valid input.
-
 ## Building and Running
 
 All the programs are organised in a Cargo workspace. Running the following
@@ -21,8 +15,8 @@ cargo build
 cargo run --bin 01-part1 01/input.txt
 ```
 
-Most programs do not depend on any external package and therefore can be build
-directly with `rustc`:
+Most programs do not depend on any external package and can therefore be
+build directly with `rustc`:
 
 ```sh
 cd 01
