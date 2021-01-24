@@ -60,7 +60,8 @@ impl ConwayCubeSystem {
     fn iterate(&mut self) {
         let mut new_cubes = self.cubes.clone();
 
-        // TODO: only scan for the points that might be active at certain cycle.
+        // NB: we could optmise here by scanning only for the points
+        // that might be active at certain cycle.
         for (x, xdim) in self.cubes.iter().enumerate() {
             for (y, ydim) in xdim.iter().enumerate() {
                 for (z, zdim) in ydim.iter().enumerate() {
