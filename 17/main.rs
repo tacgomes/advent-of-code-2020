@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::process;
 
+use itertools::iproduct;
+
 struct Point(isize, isize, isize, isize);
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -11,17 +13,10 @@ enum State {
 }
 
 fn cartesian_product(hypercube: bool) -> Vec<Point> {
-    let w_range = if hypercube { (-1, 1) } else { (0, 0) };
-    (-1..=1)
-        .flat_map(|x| {
-            (-1..=1)
-                .flat_map(move |y| {
-                    (-1..=1)
-                        .clone()
-                        .flat_map(move |z| (w_range.0..=w_range.1).map(move |w| Point(x, y, z, w)))
-                })
-                .filter(|&Point(x, y, z, w)| !(x == 0 && y == 0 && z == 0 && w == 0))
-        })
+    let wrange = if hypercube { -1..2 } else { 0..1 };
+    iproduct!(-1..2, -1..2, -1..2, wrange)
+        .filter(|&(x, y, z, w)| !(x == 0 && y == 0 && z == 0 && w == 0))
+        .map(|(x, y, z, w)| Point(x, y, z, w))
         .collect()
 }
 

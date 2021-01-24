@@ -7,3 +7,6 @@ edition = "2018"
 [[bin]]
 name = "17"
 path = "main.rs"
+
+[dependencies]
+itertools = "0.4.8"
